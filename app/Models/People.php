@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\CreationSource;
+use App\Models\Concerns\Emails\HasEmails;
 use App\Models\Concerns\HasAiSummary;
 use App\Models\Concerns\HasCreator;
 use App\Models\Concerns\HasNotes;
@@ -32,6 +33,7 @@ final class People extends Model implements HasCustomFields
 {
     use HasAiSummary;
     use HasCreator;
+    use HasEmails;
 
     /** @use HasFactory<PeopleFactory> */
     use HasFactory;

@@ -10,6 +10,8 @@ use App\Models\CustomField;
 use App\Models\CustomFieldOption;
 use App\Models\CustomFieldSection;
 use App\Models\CustomFieldValue;
+use App\Models\Email;
+use App\Models\EmailAccount;
 use App\Models\Export;
 use App\Models\Note;
 use App\Models\Opportunity;
@@ -130,6 +132,8 @@ final class AppServiceProvider extends ServiceProvider
             'task' => Task::class,
             'note' => Note::class,
             'system_administrator' => SystemAdministrator::class,
+            'email' => Email::class,
+            'email_account' => EmailAccount::class,
         ]);
 
         // Use custom models for custom-fields package
