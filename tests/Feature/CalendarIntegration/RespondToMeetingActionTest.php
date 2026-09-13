@@ -42,7 +42,7 @@ function respondToMeetingInvitation(ConnectedAccount $account, array $overrides 
         'response_status' => $overrides['attendee_response_status'] ?? AttendeeResponseStatus::NEEDS_ACTION,
     ]);
 
-    return $meeting->load(['attendees', 'connectedAccount', 'team']);
+    return $meeting->load(['attendees', 'connectedAccount', 'workspace']);
 }
 
 function respondToMeetingCalendarAccount(User $user, Workspace $team): ConnectedAccount
@@ -206,7 +206,7 @@ it('forbids a teammate from changing someone else\'s RSVP when they are not on t
 
     $teammate = User::factory()->create();
     $owner->currentWorkspace->users()->attach($teammate, ['role' => 'admin']);
-    $teammate->switchTeam($owner->currentWorkspace);
+    $teammate->switchWorkspace($owner->currentWorkspace);
 
     $service = Mockery::mock(CalendarServiceInterface::class);
     $service->shouldNotReceive('respondToEvent');
@@ -234,7 +234,7 @@ it('lets a teammate respond when only their connected mailbox email is on the gu
 
     $teammate = User::factory()->create(['email' => 'mail2asmitnepali@gmail.com']);
     $owner->currentWorkspace->users()->attach($teammate, ['role' => 'admin']);
-    $teammate->switchTeam($owner->currentWorkspace);
+    $teammate->switchWorkspace($owner->currentWorkspace);
 
     $teammateAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'workspace_id' => $owner->currentWorkspace->getKey(),
@@ -283,7 +283,7 @@ it('forbids a teammate from responding when only the workspace email is invited 
 
     $teammate = User::factory()->create(['email' => 'mail2asmitnepali@gmail.com']);
     $owner->currentWorkspace->users()->attach($teammate, ['role' => 'admin']);
-    $teammate->switchTeam($owner->currentWorkspace);
+    $teammate->switchWorkspace($owner->currentWorkspace);
 
     ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'workspace_id' => $owner->currentWorkspace->getKey(),
@@ -329,7 +329,7 @@ it('lets a teammate respond when their workspace email is on the guest list and 
 
     $teammate = User::factory()->create(['email' => 'mail2asmitnepali@gmail.com']);
     $owner->currentWorkspace->users()->attach($teammate, ['role' => 'admin']);
-    $teammate->switchTeam($owner->currentWorkspace);
+    $teammate->switchWorkspace($owner->currentWorkspace);
 
     $teammateAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'workspace_id' => $owner->currentWorkspace->getKey(),
@@ -375,7 +375,7 @@ it('uses the connected calendar account that matches the listed mailbox identity
 
     $teammate = User::factory()->create(['email' => 'personal@gmail.com']);
     $owner->currentWorkspace->users()->attach($teammate, ['role' => 'admin']);
-    $teammate->switchTeam($owner->currentWorkspace);
+    $teammate->switchWorkspace($owner->currentWorkspace);
 
     ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'workspace_id' => $owner->currentWorkspace->getKey(),
@@ -458,7 +458,7 @@ it('writes the teammate RSVP to the matching recurring occurrence, not an earlie
 
     $teammate = User::factory()->create(['email' => 'mail2asmitnepali@gmail.com']);
     $owner->currentWorkspace->users()->attach($teammate, ['role' => 'admin']);
-    $teammate->switchTeam($owner->currentWorkspace);
+    $teammate->switchWorkspace($owner->currentWorkspace);
 
     $teammateAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'workspace_id' => $owner->currentWorkspace->getKey(),
@@ -506,7 +506,7 @@ it('writes the teammate RSVP to their own mailbox event, not the source mailbox 
 
     $teammate = User::factory()->create(['email' => 'mail2asmitnepali@gmail.com']);
     $owner->currentWorkspace->users()->attach($teammate, ['role' => 'admin']);
-    $teammate->switchTeam($owner->currentWorkspace);
+    $teammate->switchWorkspace($owner->currentWorkspace);
 
     $teammateAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'workspace_id' => $owner->currentWorkspace->getKey(),
@@ -553,7 +553,7 @@ it('looks up the teammate mailbox event by iCal UID when their local copy has no
 
     $teammate = User::factory()->create(['email' => 'mail2asmitnepali@gmail.com']);
     $owner->currentWorkspace->users()->attach($teammate, ['role' => 'admin']);
-    $teammate->switchTeam($owner->currentWorkspace);
+    $teammate->switchWorkspace($owner->currentWorkspace);
 
     $teammateAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'workspace_id' => $owner->currentWorkspace->getKey(),
@@ -601,7 +601,7 @@ it('does not RSVP with another mailbox event ID when the teammate copy cannot be
 
     $teammate = User::factory()->create(['email' => 'mail2asmitnepali@gmail.com']);
     $owner->currentWorkspace->users()->attach($teammate, ['role' => 'admin']);
-    $teammate->switchTeam($owner->currentWorkspace);
+    $teammate->switchWorkspace($owner->currentWorkspace);
 
     ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'workspace_id' => $owner->currentWorkspace->getKey(),

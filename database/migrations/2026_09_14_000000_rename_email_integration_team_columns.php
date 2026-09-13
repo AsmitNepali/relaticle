@@ -51,6 +51,10 @@ return new class extends Migration
             $table->renameColumn('team_id', 'workspace_id');
         });
 
+        Schema::table('email_blocklists', function (Blueprint $table): void {
+            $table->renameColumn('team_id', 'workspace_id');
+        });
+
         Schema::table('team_email_blocklists', function (Blueprint $table): void {
             $table->renameColumn('team_id', 'workspace_id');
         });

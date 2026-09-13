@@ -14,18 +14,18 @@ final readonly class EmailTemplatePolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->hasVerifiedEmail() && $user->currentTeam !== null;
+        return $user->hasVerifiedEmail() && $user->currentWorkspace !== null;
     }
 
     public function view(User $user, EmailTemplate $template): bool
     {
-        return $user->belongsToTeamId($template->team_id)
+        return $user->belongsToWorkspaceId($template->workspace_id)
             && ($template->is_shared || $template->created_by === $user->getKey());
     }
 
     public function create(User $user): bool
     {
-        return $user->hasVerifiedEmail() && $user->currentTeam !== null;
+        return $user->hasVerifiedEmail() && $user->currentWorkspace !== null;
     }
 
     public function update(User $user, EmailTemplate $template): bool
@@ -40,7 +40,7 @@ final readonly class EmailTemplatePolicy
 
     public function deleteAny(User $user): bool
     {
-        return $user->hasVerifiedEmail() && $user->currentTeam !== null;
+        return $user->hasVerifiedEmail() && $user->currentWorkspace !== null;
     }
 
     public function restore(User $user, EmailTemplate $template): bool
@@ -50,7 +50,7 @@ final readonly class EmailTemplatePolicy
 
     public function restoreAny(User $user): bool
     {
-        return $user->hasVerifiedEmail() && $user->currentTeam !== null;
+        return $user->hasVerifiedEmail() && $user->currentWorkspace !== null;
     }
 
     public function forceDelete(User $user, EmailTemplate $template): bool
@@ -60,6 +60,6 @@ final readonly class EmailTemplatePolicy
 
     public function forceDeleteAny(User $user): bool
     {
-        return $user->hasVerifiedEmail() && $user->currentTeam !== null;
+        return $user->hasVerifiedEmail() && $user->currentWorkspace !== null;
     }
 }

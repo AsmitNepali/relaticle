@@ -28,12 +28,12 @@ final readonly class MeetingPolicy
             return false;
         }
 
-        return $user->hasVerifiedEmail() && $user->currentTeam !== null;
+        return $user->hasVerifiedEmail() && $user->currentWorkspace !== null;
     }
 
     public function view(User $user, Meeting $meeting): bool
     {
-        if (! $user->belongsToTeamId($meeting->team_id)) {
+        if (! $user->belongsToWorkspaceId($meeting->workspace_id)) {
             return false;
         }
 

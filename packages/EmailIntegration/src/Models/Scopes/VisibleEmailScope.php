@@ -112,17 +112,17 @@ final readonly class VisibleEmailScope implements Scope
         $builder->whereDoesntHave('participants', function (Builder $participantQuery) use ($teamId): void {
             $participantQuery->where(function (Builder $match) use ($teamId): void {
                 $match->whereExists(function (BaseBuilder $blockedEmail) use ($teamId): void {
-                    $blockedEmail->from('team_email_blocklists')
-                        ->where('team_email_blocklists.workspace_id', $teamId)
-                        ->where('team_email_blocklists.enforcement_level', EmailVisibilityEnforcement::Blocked->value)
-                        ->where('team_email_blocklists.type', EmailBlocklistType::EMAIL->value)
-                        ->whereRaw('lower(team_email_blocklists.value) = lower(email_participants.email_address)');
+                    $blockedEmail->from('workspace_email_blocklists')
+                        ->where('workspace_email_blocklists.workspace_id', $teamId)
+                        ->where('workspace_email_blocklists.enforcement_level', EmailVisibilityEnforcement::Blocked->value)
+                        ->where('workspace_email_blocklists.type', EmailBlocklistType::EMAIL->value)
+                        ->whereRaw('lower(workspace_email_blocklists.value) = lower(email_participants.email_address)');
                 })->orWhereExists(function (BaseBuilder $blockedDomain) use ($teamId): void {
-                    $blockedDomain->from('team_email_blocklists')
-                        ->where('team_email_blocklists.workspace_id', $teamId)
-                        ->where('team_email_blocklists.enforcement_level', EmailVisibilityEnforcement::Blocked->value)
-                        ->where('team_email_blocklists.type', EmailBlocklistType::DOMAIN->value)
-                        ->whereRaw("lower(email_participants.email_address) like '%@' || lower(team_email_blocklists.value)");
+                    $blockedDomain->from('workspace_email_blocklists')
+                        ->where('workspace_email_blocklists.workspace_id', $teamId)
+                        ->where('workspace_email_blocklists.enforcement_level', EmailVisibilityEnforcement::Blocked->value)
+                        ->where('workspace_email_blocklists.type', EmailBlocklistType::DOMAIN->value)
+                        ->whereRaw("lower(email_participants.email_address) like '%@' || lower(workspace_email_blocklists.value)");
                 });
             });
         });
@@ -157,18 +157,18 @@ final readonly class VisibleEmailScope implements Scope
 
                         $notProtected
                             ->whereNotExists(function (BaseBuilder $protectedEmail) use ($teamId): void {
-                                $protectedEmail->from('team_email_blocklists')
-                                    ->where('team_email_blocklists.workspace_id', $teamId)
-                                    ->where('team_email_blocklists.enforcement_level', EmailVisibilityEnforcement::Protected->value)
-                                    ->where('team_email_blocklists.type', EmailBlocklistType::EMAIL->value)
-                                    ->whereRaw('lower(team_email_blocklists.value) = lower(email_participants.email_address)');
+                                $protectedEmail->from('workspace_email_blocklists')
+                                    ->where('workspace_email_blocklists.workspace_id', $teamId)
+                                    ->where('workspace_email_blocklists.enforcement_level', EmailVisibilityEnforcement::Protected->value)
+                                    ->where('workspace_email_blocklists.type', EmailBlocklistType::EMAIL->value)
+                                    ->whereRaw('lower(workspace_email_blocklists.value) = lower(email_participants.email_address)');
                             })
                             ->whereNotExists(function (BaseBuilder $protectedDomain) use ($teamId): void {
-                                $protectedDomain->from('team_email_blocklists')
-                                    ->where('team_email_blocklists.workspace_id', $teamId)
-                                    ->where('team_email_blocklists.enforcement_level', EmailVisibilityEnforcement::Protected->value)
-                                    ->where('team_email_blocklists.type', EmailBlocklistType::DOMAIN->value)
-                                    ->whereRaw("lower(email_participants.email_address) like '%@' || lower(team_email_blocklists.value)");
+                                $protectedDomain->from('workspace_email_blocklists')
+                                    ->where('workspace_email_blocklists.workspace_id', $teamId)
+                                    ->where('workspace_email_blocklists.enforcement_level', EmailVisibilityEnforcement::Protected->value)
+                                    ->where('workspace_email_blocklists.type', EmailBlocklistType::DOMAIN->value)
+                                    ->whereRaw("lower(email_participants.email_address) like '%@' || lower(workspace_email_blocklists.value)");
                             });
                     });
                 });

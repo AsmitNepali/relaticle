@@ -96,7 +96,7 @@ function makeOutboundEmail(int $attempts): Email
 {
     /** @var Email $email */
     $email = Email::factory()->outbound()->create([
-        'workspace_id' => test()->team->id,
+        'workspace_id' => test()->workspace->id,
         'user_id' => test()->user->id,
         'connected_account_id' => test()->account->getKey(),
         'rfc_message_id' => '<idem-key@example.com>',

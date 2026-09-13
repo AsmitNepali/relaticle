@@ -49,7 +49,7 @@ final class UserEmailPrivacySettings extends BaseLivewireComponent implements Ha
                                 'ariaLabel' => __('email/privacy-settings.sharing_preference.tier_label'),
                                 'workspaceDefaultLabel' => __('email/privacy-settings.sharing_preference.use_workspace_default'),
                                 'workspaceDefaultDescription' => __('email/privacy-settings.sharing_preference.workspace_default_description', [
-                                    'tier' => ($this->authUser()->currentTeam->default_email_sharing_tier ?? EmailPrivacyTier::METADATA_ONLY)->getLabel(),
+                                    'tier' => ($this->authUser()->currentWorkspace->default_email_sharing_tier ?? EmailPrivacyTier::METADATA_ONLY)->getLabel(),
                                 ]),
                             ]),
                         Actions::make([

@@ -40,7 +40,7 @@ beforeEach(function (): void {
 function makeLinkEmail(array $overrides = []): Email
 {
     return Email::factory()->create(array_merge([
-        'workspace_id' => test()->team->id,
+        'workspace_id' => test()->workspace->id,
         'user_id' => test()->user->id,
         'connected_account_id' => test()->account->getKey(),
     ], $overrides));
@@ -1279,7 +1279,7 @@ function makeAcmeCompanyWithDomain(): ?Company
 {
     $domainsField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', test()->team->getKey())
+        ->where('tenant_id', test()->workspace->getKey())
         ->where('entity_type', 'company')
         ->where('code', 'domains')
         ->first();
@@ -1289,7 +1289,7 @@ function makeAcmeCompanyWithDomain(): ?Company
     }
 
     $company = Company::create([
-        'workspace_id' => test()->team->id,
+        'workspace_id' => test()->workspace->id,
         'name' => 'Acme',
         'creator_id' => test()->user->id,
     ]);

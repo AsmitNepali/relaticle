@@ -40,7 +40,7 @@ function makeEmailWithBody(string $html): Email
 {
     /** @var Email $email */
     $email = Email::factory()->create([
-        'workspace_id' => test()->team->id,
+        'workspace_id' => test()->workspace->id,
         'user_id' => test()->owner->id,
         'connected_account_id' => test()->account->getKey(),
         'privacy_tier' => EmailPrivacyTier::FULL,
@@ -60,7 +60,7 @@ function makeEmailWithPlainText(string $text): Email
 {
     /** @var Email $email */
     $email = Email::factory()->create([
-        'workspace_id' => test()->team->id,
+        'workspace_id' => test()->workspace->id,
         'user_id' => test()->owner->id,
         'connected_account_id' => test()->account->getKey(),
         'privacy_tier' => EmailPrivacyTier::FULL,

@@ -150,7 +150,7 @@ it('hides RSVP actions for a teammate who is not listed on the guest list', func
 
     $teammate = User::factory()->create();
     $this->workspace->users()->attach($teammate, ['role' => 'admin']);
-    $teammate->switchTeam($this->workspace);
+    $teammate->switchWorkspace($this->workspace);
     $this->actingAs($teammate);
     Filament::setTenant($this->workspace);
 
@@ -174,7 +174,7 @@ it('hides RSVP actions when only the workspace email is invited but no matching 
 
     $teammate = User::factory()->create(['email' => 'mail2asmitnepali@gmail.com']);
     $this->workspace->users()->attach($teammate, ['role' => 'admin']);
-    $teammate->switchTeam($this->workspace);
+    $teammate->switchWorkspace($this->workspace);
 
     ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'workspace_id' => $this->workspace->id,
@@ -207,7 +207,7 @@ it('shows RSVP actions when the workspace email is invited and the matching cale
 
     $teammate = User::factory()->create(['email' => 'mail2asmitnepali@gmail.com']);
     $this->workspace->users()->attach($teammate, ['role' => 'admin']);
-    $teammate->switchTeam($this->workspace);
+    $teammate->switchWorkspace($this->workspace);
 
     ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'workspace_id' => $this->workspace->id,
@@ -247,7 +247,7 @@ it('shows RSVP actions when only the connected mailbox email is on the guest lis
 
     $teammate = User::factory()->create(['email' => 'mail2asmitnepali@gmail.com']);
     $this->workspace->users()->attach($teammate, ['role' => 'admin']);
-    $teammate->switchTeam($this->workspace);
+    $teammate->switchWorkspace($this->workspace);
 
     ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'workspace_id' => $this->workspace->id,

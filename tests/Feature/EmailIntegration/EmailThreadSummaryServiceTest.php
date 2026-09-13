@@ -52,12 +52,12 @@ beforeEach(function (): void {
 function makeThreadWithEmail(): EmailThread
 {
     $thread = EmailThread::factory()->create([
-        'workspace_id' => test()->team->id,
+        'workspace_id' => test()->workspace->id,
         'connected_account_id' => test()->account->getKey(),
     ]);
 
     $email = Email::factory()->create([
-        'workspace_id' => test()->team->id,
+        'workspace_id' => test()->workspace->id,
         'user_id' => test()->owner->id,
         'connected_account_id' => test()->account->getKey(),
         'thread_id' => $thread->thread_id,

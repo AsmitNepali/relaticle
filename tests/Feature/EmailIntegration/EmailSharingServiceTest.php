@@ -35,7 +35,7 @@ beforeEach(function (): void {
 function makeSharingEmail(array $overrides = []): Email
 {
     return Email::factory()->create(array_merge([
-        'workspace_id' => test()->team->id,
+        'workspace_id' => test()->workspace->id,
         'user_id' => test()->owner->id,
         'connected_account_id' => test()->account->getKey(),
     ], $overrides));

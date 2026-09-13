@@ -13,20 +13,20 @@ final class AllowedComposerRecipient
 {
     public static function seed(User $user, string $email): void
     {
-        $team = $user->currentTeam;
+        $workspace = $user->currentWorkspace;
 
-        $person = People::factory()->for($team)->create([
+        $person = People::factory()->for($workspace)->create([
             'creator_id' => $user->getKey(),
         ]);
 
         $emailsField = CustomField::query()
             ->withoutGlobalScopes()
-            ->where('tenant_id', $team->getKey())
+            ->where('tenant_id', $workspace->getKey())
             ->where('entity_type', 'people')
             ->where('code', PeopleField::EMAILS->value)
             ->firstOrFail();
 
-        $person->saveCustomFieldValue($emailsField, [$email], $team);
+        $person->saveCustomFieldValue($emailsField, [$email], $workspace);
     }
 
     /**

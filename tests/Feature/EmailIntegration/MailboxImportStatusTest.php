@@ -169,7 +169,7 @@ it('renders each importing mailbox in the home section', function (): void {
 
 it('renders nothing on home when nothing is importing', function (): void {
     ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'workspace_id' => test()->team->getKey(),
+        'workspace_id' => test()->workspace->getKey(),
         'user_id' => test()->user->getKey(),
         'sync_cursor' => 'done',
         'last_synced_at' => now(),

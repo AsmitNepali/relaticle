@@ -35,7 +35,7 @@ it('can render the view page', function (): void {
 });
 
 it('registers the meetings relation manager on the opportunity view page', function (): void {
-    $record = Opportunity::factory()->recycle([$this->user, $this->team])->create();
+    $record = Opportunity::factory()->recycle([$this->user, $this->workspace])->create();
 
     $managers = livewire(ViewOpportunity::class, ['record' => $record->getKey()])
         ->instance()

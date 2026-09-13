@@ -38,7 +38,7 @@ it('can render the view page', function (): void {
 });
 
 it('registers the meetings relation manager on the company view page', function (): void {
-    $record = Company::factory()->recycle([$this->user, $this->team])->create();
+    $record = Company::factory()->recycle([$this->user, $this->workspace])->create();
 
     $managers = livewire(ViewCompany::class, ['record' => $record->getKey()])
         ->instance()
