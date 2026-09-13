@@ -60,6 +60,7 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\DevCommands;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades;
@@ -246,6 +247,7 @@ final class AppServiceProvider extends ServiceProvider
 
         $this->configureActivityLog();
         $this->configureBlog();
+        $this->configureDevCommands();
     }
 
     /**
@@ -633,5 +635,13 @@ final class AppServiceProvider extends ServiceProvider
         Blueprint::macro('teams', function (): void {
             $this->foreignUlid('team_id')->constrained()->cascadeOnDelete();
         });
+    }
+
+    private function configureDevCommands(): void
+    {
+        DevCommands::artisan(
+            'schedule:work',
+        );
+        DevCommands::except('reverb', 'queue');
     }
 }

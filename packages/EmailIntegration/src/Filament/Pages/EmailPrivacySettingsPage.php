@@ -21,6 +21,7 @@ use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\Alignment;
 use Filament\Support\Enums\Size;
+use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Laravel\Pennant\Feature;
 use Relaticle\EmailIntegration\Actions\SaveTeamEmailSharingDefaultAction;
@@ -129,8 +130,9 @@ final class EmailPrivacySettingsPage extends Page implements HasSchemas
     {
         return Action::make('save')
             ->label(__('filament/pages/email-privacy-settings.actions.save'))
-            ->requiresConfirmation(fn (): bool => $this->tab === 'sharing' && $this->workspaceSharingTierChanged())
+            ->requiresConfirmation()
             ->modalHeading(SharingTierChangeConfirmation::modalHeading())
+            ->modalWidth(Width::Small)
             ->modalDescription(fn (): string => SharingTierChangeConfirmation::modalDescription(
                 EmailPrivacyTier::from($this->default_email_sharing_tier),
             ))
