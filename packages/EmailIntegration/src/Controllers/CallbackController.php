@@ -173,7 +173,11 @@ final readonly class CallbackController
     {
         return array_any(
             $approvedScopes,
-            fn (string $scope): bool => in_array($scope, $wanted, true),
+            fn (string $approved): bool => array_any(
+                $wanted,
+                fn (string $candidate): bool => $approved === $candidate
+                    || str_ends_with($candidate, '/'.$approved),
+            ),
         );
     }
 }
