@@ -25,7 +25,7 @@ final readonly class SaveUserEmailSharingDefaultAction
         DB::transaction(function () use ($user, $storedTier, $effectiveTier, $previousEffectiveTier, $hadOverride): void {
             $this->updateSettings->execute($user, $storedTier);
 
-            if ($storedTier === null) {
+            if (! $storedTier instanceof EmailPrivacyTier) {
                 if ($hadOverride) {
                     $this->applyRetroactive->executeForUserUsingWorkspaceDefaults($user);
                 }
