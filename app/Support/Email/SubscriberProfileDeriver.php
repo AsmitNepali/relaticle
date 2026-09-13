@@ -114,7 +114,7 @@ final readonly class SubscriberProfileDeriver
      */
     public function hasAiUsage(User $user, ?Model $excluding = null): bool
     {
-        if (AgentConversationMessage::query()->sentBy($user)->exists()) {
+        if ($this->hasChatUsage($user)) {
             return true;
         }
 
@@ -125,6 +125,11 @@ final readonly class SubscriberProfileDeriver
         }
 
         return $summaries->exists();
+    }
+
+    private function hasChatUsage(User $user): bool
+    {
+        return AgentConversationMessage::query()->sentBy($user)->exists();
     }
 
     /**
