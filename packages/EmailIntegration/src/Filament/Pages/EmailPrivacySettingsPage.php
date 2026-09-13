@@ -34,7 +34,6 @@ use Relaticle\EmailIntegration\Enums\EmailPrivacyTier;
 use Relaticle\EmailIntegration\Enums\EmailVisibilityEnforcement;
 use Relaticle\EmailIntegration\Models\TeamEmailBlocklist;
 use Relaticle\EmailIntegration\Services\EmailVisibilityService;
-use Relaticle\EmailIntegration\Services\PrivacyService;
 use Relaticle\EmailIntegration\Support\SharingTierChangeConfirmation;
 
 final class EmailPrivacySettingsPage extends Page implements HasSchemas
@@ -159,17 +158,6 @@ final class EmailPrivacySettingsPage extends Page implements HasSchemas
                     ->title(__('filament/pages/email-privacy-settings.notifications.saved'))
                     ->send();
             });
-    }
-
-    private function workspaceSharingTierChanged(): bool
-    {
-        /** @var User $user */
-        $user = auth()->user();
-        $team = $user->currentTeam;
-
-        $newTier = EmailPrivacyTier::from($this->default_email_sharing_tier);
-
-        return $newTier !== $this->privacy()->workspaceSharingTier($team);
     }
 
     private function persistWorkspaceSharingSettings(Team $team, User $user): bool
@@ -299,11 +287,6 @@ final class EmailPrivacySettingsPage extends Page implements HasSchemas
         );
 
         return true;
-    }
-
-    private function privacy(): PrivacyService
-    {
-        return resolve(PrivacyService::class);
     }
 
     /**
