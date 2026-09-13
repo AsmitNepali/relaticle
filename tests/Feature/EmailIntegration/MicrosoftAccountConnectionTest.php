@@ -107,6 +107,44 @@ it('flips calendar capability when Graph grants Calendars.ReadWrite without Cale
     Bus::assertDispatched(InitialCalendarSyncJob::class, fn (InitialCalendarSyncJob $job): bool => $job->connectedAccount->is($account));
 });
 
+it('flips calendar and send capabilities when Graph returns unqualified scope names', function (): void {
+    Bus::fake();
+
+    $user = User::factory()->withTeam()->create();
+    $this->actingAs($user);
+
+    $social = new SocialiteUser;
+    $social->id = 'azure-unqualified';
+    $social->email = 'ms-unqualified@example.com';
+    $social->name = 'MS Demo';
+    $social->token = 'access-token';
+    $social->refreshToken = 'refresh-token';
+    $social->expiresIn = 3600;
+    $social->approvedScopes = [
+        'Mail.Read',
+        'Mail.Send',
+        'Calendars.ReadWrite',
+        'offline_access',
+    ];
+
+    Socialite::fake('azure', $social);
+    bindMailboxOAuthWorkspace($user);
+
+    $this->get(route('email-accounts.callback', ['provider' => 'azure']))
+        ->assertRedirect();
+
+    $account = ConnectedAccount::query()
+        ->where('email_address', 'ms-unqualified@example.com')
+        ->where('provider', EmailProvider::AZURE)
+        ->firstOrFail();
+
+    expect($account->hasCalendar())->toBeTrue()
+        ->and($account->hasSend())->toBeTrue()
+        ->and($account->hasEmail())->toBeTrue();
+
+    Bus::assertDispatched(InitialCalendarSyncJob::class, fn (InitialCalendarSyncJob $job): bool => $job->connectedAccount->is($account));
+});
+
 it('records send as missing when Graph does not grant Mail.Send', function (): void {
     Bus::fake();
 
