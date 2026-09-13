@@ -90,6 +90,27 @@ it('keeps a completed import visible until dismiss on this instance', function (
         ->assertSee(trans_choice('filament/pages/email-accounts.sync_status.emails_processed', 643, ['count' => 643]));
 });
 
+it('shows calendar-only sync progress on the home import section', function (): void {
+    $user = User::factory()->withTeam()->create();
+    $this->actingAs($user);
+    Filament::setCurrentPanel(Filament::getPanel('app'));
+    Filament::setTenant($user->currentTeam);
+
+    $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
+        'team_id' => $user->currentTeam->getKey(),
+        'user_id' => $user->getKey(),
+        'sync_cursor' => 'done',
+        'calendar_sync_cursor' => 'done',
+        'capabilities' => ['email' => true, 'calendar' => true],
+    ]));
+
+    MailboxSyncTracker::markCalendarStarted($account);
+
+    livewire(MailboxImportStatus::class, ['placement' => 'home'])
+        ->assertSee(__('filament/pages/email-accounts.importing_percent', ['percent' => 0]))
+        ->assertSee(__('filament/pages/email-accounts.sync_status.title_syncing'));
+});
+
 it('shows import complete while incremental sync runs after history finishes', function (): void {
     $account = importingAccount();
 

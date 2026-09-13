@@ -39,7 +39,11 @@ final class MailboxImportStatus extends Component
     {
         $this->ownedAccountsCache = null;
 
-        foreach ($this->syncingOwnedAccounts() as $account) {
+        foreach ($this->ownedAccounts() as $account) {
+            if (! $account->isImportingHistory()) {
+                continue;
+            }
+
             $id = (string) $account->getKey();
 
             if (! in_array($id, $this->seenImportingIds, true)) {
@@ -131,15 +135,6 @@ final class MailboxImportStatus extends Component
         }
 
         return ! in_array((string) $account->getKey(), $this->seenImportingIds, true);
-    }
-
-    /**
-     * @return Collection<int, ConnectedAccount>
-     */
-    private function syncingOwnedAccounts(): Collection
-    {
-        return $this->ownedAccounts()
-            ->filter(fn (ConnectedAccount $account): bool => $account->showsSyncProgress());
     }
 
     /**
