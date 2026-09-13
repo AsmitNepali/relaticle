@@ -186,6 +186,52 @@ it('rejects an incorrect full access confirmation phrase on my email privacy', f
     expect($this->owner->fresh()->default_email_sharing_tier)->toBeNull();
 });
 
+it('retroactively updates emails in other workspaces when choosing an explicit tier equal to the current workspace default', function (): void {
+    $metadataTeam = Team::factory()->create([
+        'user_id' => $this->owner->getKey(),
+        'default_email_sharing_tier' => EmailPrivacyTier::METADATA_ONLY,
+    ]);
+    $this->owner->teams()->attach($metadataTeam, ['role' => 'admin']);
+    $this->team->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
+    $this->actingAs($this->owner);
+    Filament::setTenant($this->team);
+
+    $fullAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
+        'team_id' => $this->team->id,
+        'user_id' => $this->owner->id,
+    ]));
+    $metadataAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
+        'team_id' => $metadataTeam->getKey(),
+        'user_id' => $this->owner->id,
+    ]));
+
+    $fullWorkspaceEmail = Email::factory()->create([
+        'team_id' => $this->team->id,
+        'user_id' => $this->owner->id,
+        'connected_account_id' => $fullAccount->getKey(),
+        'privacy_tier' => EmailPrivacyTier::FULL,
+        'privacy_tier_customized' => false,
+    ]);
+    $metadataWorkspaceEmail = Email::factory()->create([
+        'team_id' => $metadataTeam->getKey(),
+        'user_id' => $this->owner->id,
+        'connected_account_id' => $metadataAccount->getKey(),
+        'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
+        'privacy_tier_customized' => false,
+    ]);
+
+    livewire(UserEmailPrivacySettings::class)
+        ->set('data.default_email_sharing_tier', EmailPrivacyTier::FULL->value)
+        ->callAction('saveTier', data: [
+            'full_access_confirmation' => 'I understand',
+        ])
+        ->assertNotified('Email privacy settings saved.');
+
+    expect($this->owner->fresh()->default_email_sharing_tier)->toBe(EmailPrivacyTier::FULL)
+        ->and($fullWorkspaceEmail->fresh()->privacy_tier)->toBe(EmailPrivacyTier::FULL)
+        ->and($metadataWorkspaceEmail->fresh()->privacy_tier)->toBe(EmailPrivacyTier::FULL);
+});
+
 it('saves without confirmation when the user sharing tier is unchanged', function (): void {
     $this->owner->update(['default_email_sharing_tier' => EmailPrivacyTier::SUBJECT]);
     $this->actingAs($this->owner);
