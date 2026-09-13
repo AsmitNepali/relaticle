@@ -27,11 +27,5 @@
 
     {{ $this->form }}
 
-    <div class="mt-6">
-        @if (in_array($tab, ['sharing', 'record_creation'], true))
-            {{ $this->saveAction }}
-        @endif
-    </div>
-
     <x-filament-actions::modals />
 </x-filament-panels::page>

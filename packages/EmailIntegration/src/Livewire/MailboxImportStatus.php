@@ -62,7 +62,9 @@ final class MailboxImportStatus extends Component
 
     public function shouldPoll(): bool
     {
-        return array_any($this->visibleMailboxes(), fn (array $row): bool => $row['importing']);
+        return $this->ownedAccounts()->contains(
+            fn (ConnectedAccount $account): bool => $this->isMailboxImporting($account),
+        );
     }
 
     /**
@@ -87,7 +89,8 @@ final class MailboxImportStatus extends Component
                 continue;
             }
 
-            $incrementalOnly = $account->isIncrementalSyncing();
+            $importing = $this->isMailboxImporting($account);
+            $incrementalOnly = $importing && $account->isIncrementalSyncing();
 
             $rows[] = [
                 'id' => $id,
@@ -95,8 +98,8 @@ final class MailboxImportStatus extends Component
                 'imported' => $account->syncEmailsProcessedCount(),
                 'meetingsImported' => $account->syncMeetingsProcessedCount(),
                 'hasCalendar' => $account->hasCalendar(),
-                'percent' => $account->syncDisplayPercent(),
-                'importing' => $account->showsSyncProgress(),
+                'percent' => $importing ? $account->syncDisplayPercent() : 100,
+                'importing' => $importing,
                 'incrementalOnly' => $incrementalOnly,
                 'incrementalLabel' => null,
                 'settings_url' => EmailAccountSettingsPage::getUrl(['account' => $id]),
@@ -115,6 +118,19 @@ final class MailboxImportStatus extends Component
             'anyImporting' => array_any($mailboxes, fn (array $row): bool => $row['importing']),
             'shouldPoll' => $this->shouldPoll(),
         ]);
+    }
+
+    private function isMailboxImporting(ConnectedAccount $account): bool
+    {
+        if ($account->isImportingHistory()) {
+            return true;
+        }
+
+        if (! $account->showsSyncProgress()) {
+            return false;
+        }
+
+        return ! in_array((string) $account->getKey(), $this->seenImportingIds, true);
     }
 
     /**

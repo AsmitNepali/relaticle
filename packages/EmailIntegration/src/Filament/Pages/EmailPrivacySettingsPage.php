@@ -19,6 +19,7 @@ use Filament\Schemas\Components\View;
 use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\Alignment;
 use Filament\Support\Enums\Size;
 use Filament\Support\Icons\Heroicon;
 use Laravel\Pennant\Feature;
@@ -245,7 +246,11 @@ final class EmailPrivacySettingsPage extends Page implements HasSchemas
                         ->viewData([
                             'ariaLabel' => __('filament/pages/email-privacy-settings.workspace_default.tier_label'),
                         ]),
-                ]),
+                ])
+                ->footerActions([
+                    $this->saveAction(),
+                ])
+                ->footerActionsAlignment(Alignment::End),
 
             Section::make(__('filament/pages/email-privacy-settings.record_creation.heading'))
                 ->description(__('filament/pages/email-privacy-settings.record_creation.description'))
@@ -261,7 +266,11 @@ final class EmailPrivacySettingsPage extends Page implements HasSchemas
                     ViewField::make('auto_create_companies')
                         ->hiddenLabel()
                         ->view('email-integration::forms.company-creation-card'),
-                ]),
+                ])
+                ->footerActions([
+                    $this->saveAction(),
+                ])
+                ->footerActionsAlignment(Alignment::End),
         ]);
     }
 
