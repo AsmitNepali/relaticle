@@ -130,7 +130,7 @@ final class EmailPrivacySettingsPage extends Page implements HasSchemas
     {
         return Action::make('save')
             ->label(__('filament/pages/email-privacy-settings.actions.save'))
-            ->requiresConfirmation()
+            ->requiresConfirmation(fn (): bool => $this->tab === 'sharing' && $this->workspaceSharingTierChanged())
             ->modalHeading(SharingTierChangeConfirmation::modalHeading())
             ->modalWidth(Width::Small)
             ->modalDescription(fn (): string => SharingTierChangeConfirmation::modalDescription(
