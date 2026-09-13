@@ -34,6 +34,7 @@ use Relaticle\EmailIntegration\Enums\EmailPrivacyTier;
 use Relaticle\EmailIntegration\Enums\EmailVisibilityEnforcement;
 use Relaticle\EmailIntegration\Models\TeamEmailBlocklist;
 use Relaticle\EmailIntegration\Services\EmailVisibilityService;
+use Relaticle\EmailIntegration\Services\PrivacyService;
 use Relaticle\EmailIntegration\Support\SharingTierChangeConfirmation;
 
 final class EmailPrivacySettingsPage extends Page implements HasSchemas
@@ -129,15 +130,21 @@ final class EmailPrivacySettingsPage extends Page implements HasSchemas
     {
         return Action::make('save')
             ->label(__('filament/pages/email-privacy-settings.actions.save'))
-            ->requiresConfirmation()
-            ->modalHeading(SharingTierChangeConfirmation::modalHeading())
+            ->requiresConfirmation(fn (): bool => $this->shouldConfirmSave())
+            ->modalHeading(fn (): ?string => $this->shouldConfirmSave()
+                ? SharingTierChangeConfirmation::modalHeading()
+                : null)
             ->modalWidth(Width::Small)
-            ->modalDescription(fn (): string => SharingTierChangeConfirmation::modalDescription(
-                EmailPrivacyTier::from($this->default_email_sharing_tier),
-            ))
-            ->schema(fn (): array => SharingTierChangeConfirmation::schema(
-                EmailPrivacyTier::from($this->default_email_sharing_tier),
-            ))
+            ->modalDescription(fn (): ?string => $this->shouldConfirmSave()
+                ? SharingTierChangeConfirmation::modalDescription(
+                    EmailPrivacyTier::from($this->default_email_sharing_tier),
+                )
+                : null)
+            ->schema(fn (): array => $this->shouldConfirmSave()
+                ? SharingTierChangeConfirmation::schema(
+                    EmailPrivacyTier::from($this->default_email_sharing_tier),
+                )
+                : [])
             ->action(function (): void {
                 /** @var User $user */
                 $user = auth()->user();
@@ -158,6 +165,22 @@ final class EmailPrivacySettingsPage extends Page implements HasSchemas
                     ->title(__('filament/pages/email-privacy-settings.notifications.saved'))
                     ->send();
             });
+    }
+
+    private function shouldConfirmSave(): bool
+    {
+        return $this->tab === 'sharing' && $this->workspaceSharingTierChanged();
+    }
+
+    private function workspaceSharingTierChanged(): bool
+    {
+        /** @var User $user */
+        $user = auth()->user();
+        $team = $user->currentTeam;
+
+        $newTier = EmailPrivacyTier::from($this->default_email_sharing_tier);
+
+        return $newTier !== $this->privacy()->workspaceSharingTier($team);
     }
 
     private function persistWorkspaceSharingSettings(Team $team, User $user): bool
@@ -287,6 +310,11 @@ final class EmailPrivacySettingsPage extends Page implements HasSchemas
         );
 
         return true;
+    }
+
+    private function privacy(): PrivacyService
+    {
+        return resolve(PrivacyService::class);
     }
 
     /**
