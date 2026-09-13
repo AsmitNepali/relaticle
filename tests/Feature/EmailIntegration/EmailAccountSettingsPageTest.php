@@ -58,7 +58,9 @@ it('saves account settings and the sharing tier from the save action', function 
             'daily_send_limit' => 100,
             'default_email_sharing_tier' => EmailPrivacyTier::FULL->value,
         ])
-        ->callAction('save')
+        ->callAction('save', data: [
+            'full_access_confirmation' => 'I understand',
+        ])
         ->assertNotified();
 
     expect($this->account->fresh())
@@ -68,6 +70,43 @@ it('saves account settings and the sharing tier from the save action', function 
         ->daily_send_limit->toBe(100);
 
     expect($this->user->fresh()->default_email_sharing_tier)->toBe(EmailPrivacyTier::FULL);
+});
+
+it('requires confirmation when changing the account sharing tier to private', function (): void {
+    livewire(EmailAccountSettingsPage::class, ['account' => $this->account->id])
+        ->fillForm([
+            'default_email_sharing_tier' => EmailPrivacyTier::PRIVATE->value,
+        ])
+        ->mountAction('save')
+        ->assertActionMounted('save');
+});
+
+it('rejects an incorrect full access confirmation phrase on account settings', function (): void {
+    livewire(EmailAccountSettingsPage::class, ['account' => $this->account->id])
+        ->fillForm([
+            'default_email_sharing_tier' => EmailPrivacyTier::FULL->value,
+        ])
+        ->callAction('save', data: [
+            'full_access_confirmation' => 'not the phrase',
+        ])
+        ->assertHasActionErrors(['full_access_confirmation']);
+
+    expect($this->user->fresh()->default_email_sharing_tier)->toBeNull();
+});
+
+it('saves account settings without confirmation when the sharing tier is unchanged', function (): void {
+    $this->user->update(['default_email_sharing_tier' => EmailPrivacyTier::SUBJECT]);
+
+    livewire(EmailAccountSettingsPage::class, ['account' => $this->account->id])
+        ->fillForm([
+            'sync_inbox' => false,
+            'default_email_sharing_tier' => EmailPrivacyTier::SUBJECT->value,
+        ])
+        ->callAction('save')
+        ->assertNotified();
+
+    expect($this->account->fresh()->sync_inbox)->toBeFalse()
+        ->and($this->user->fresh()->default_email_sharing_tier)->toBe(EmailPrivacyTier::SUBJECT);
 });
 
 it('adds blocklist entries from the blocklist modal', function (): void {

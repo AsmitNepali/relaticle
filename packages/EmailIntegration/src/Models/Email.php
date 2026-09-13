@@ -53,6 +53,7 @@ use Relaticle\EmailIntegration\Support\EmailHtmlSanitizer;
  * @property EmailFolder|null $folder
  * @property EmailStatus $status
  * @property EmailPrivacyTier $privacy_tier
+ * @property bool $privacy_tier_customized
  * @property bool $has_attachments
  * @property bool $is_internal
  * @property EmailCreationSource $creation_source
@@ -92,6 +93,7 @@ final class Email extends Model
         'folder',
         'status',
         'privacy_tier',
+        'privacy_tier_customized',
         'has_attachments',
         'is_internal',
         'creation_source',
@@ -105,6 +107,7 @@ final class Email extends Model
 
     protected $attributes = [
         'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
+        'privacy_tier_customized' => false,
         'status' => EmailStatus::SYNCED,
         'has_attachments' => false,
         'is_internal' => false,
@@ -439,6 +442,7 @@ final class Email extends Model
             'folder' => EmailFolder::class,
             'status' => EmailStatus::class,
             'privacy_tier' => EmailPrivacyTier::class,
+            'privacy_tier_customized' => 'boolean',
             'creation_source' => EmailCreationSource::class,
             'has_attachments' => 'boolean',
             'is_internal' => 'boolean',

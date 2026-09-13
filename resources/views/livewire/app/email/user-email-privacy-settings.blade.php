@@ -1,7 +1,5 @@
 <div>
-    <form wire:submit="save">
-        {{ $this->form }}
-    </form>
+    {{ $this->form }}
 
     <x-filament-actions::modals/>
 </div>

@@ -13,7 +13,7 @@ return [
     'sharing' => [
         'label' => 'Email sharing',
         'use_workspace_default' => 'Use workspace default',
-        'hint' => 'What your workspace sees. Applies to all your mailboxes.',
+        'hint' => 'What your workspace sees. Applies to all your mailboxes and existing synced emails that still follow your default.',
         'workspace_default_description' => 'Follow whatever the workspace has set. Currently :tier',
     ],
     'blocklist' => [

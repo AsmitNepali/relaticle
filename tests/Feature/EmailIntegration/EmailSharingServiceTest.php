@@ -97,7 +97,8 @@ it('updates the email privacy_tier', function (): void {
 
     $this->service->setEmailTier($email, EmailPrivacyTier::FULL);
 
-    expect($email->fresh()->privacy_tier)->toBe(EmailPrivacyTier::FULL);
+    expect($email->fresh()->privacy_tier)->toBe(EmailPrivacyTier::FULL)
+        ->and($email->fresh()->privacy_tier_customized)->toBeTrue();
 });
 
 it('shares all owner emails linked to a record', function (): void {
@@ -178,7 +179,9 @@ it('bulk updates privacy_tier on all owner emails linked to a record', function 
 
     expect($updated)->toBe(2)
         ->and($emailA->fresh()->privacy_tier)->toBe(EmailPrivacyTier::FULL)
-        ->and($emailB->fresh()->privacy_tier)->toBe(EmailPrivacyTier::FULL);
+        ->and($emailB->fresh()->privacy_tier)->toBe(EmailPrivacyTier::FULL)
+        ->and($emailA->fresh()->privacy_tier_customized)->toBeTrue()
+        ->and($emailB->fresh()->privacy_tier_customized)->toBeTrue();
 });
 
 it('returns 0 when no emails are linked to the record', function (): void {

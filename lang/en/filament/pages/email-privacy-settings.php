@@ -16,7 +16,7 @@ return [
     ],
     'workspace_default' => [
         'heading' => 'Workspace Default Sharing Tier',
-        'description' => 'Applied to all newly synced emails unless a team member sets their own preference.',
+        'description' => 'Applied to synced emails for members who follow the workspace default. Existing emails update when you save, except emails a member changed individually.',
         'tier_label' => 'Default Sharing Tier for Connected Email Accounts',
     ],
     'visibility' => [

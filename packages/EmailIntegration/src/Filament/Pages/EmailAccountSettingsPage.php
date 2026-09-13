@@ -34,10 +34,10 @@ use Illuminate\Support\Js;
 use Livewire\Attributes\Computed;
 use Relaticle\EmailIntegration\Actions\CreateSignatureAction;
 use Relaticle\EmailIntegration\Actions\DeleteSignatureAction;
+use Relaticle\EmailIntegration\Actions\SaveUserEmailSharingDefaultAction;
 use Relaticle\EmailIntegration\Actions\UpdateConnectedAccountBlocklistAction;
 use Relaticle\EmailIntegration\Actions\UpdateConnectedAccountSettingsAction;
 use Relaticle\EmailIntegration\Actions\UpdateSignatureAction;
-use Relaticle\EmailIntegration\Actions\UpdateUserEmailPrivacySettingsAction;
 use Relaticle\EmailIntegration\Enums\EmailBlocklistType;
 use Relaticle\EmailIntegration\Enums\EmailPrivacyTier;
 use Relaticle\EmailIntegration\Filament\Clusters\EmailSettings;
@@ -46,6 +46,8 @@ use Relaticle\EmailIntegration\Filament\Concerns\HasEmailFeatureFlag;
 use Relaticle\EmailIntegration\Models\ConnectedAccount;
 use Relaticle\EmailIntegration\Models\EmailBlocklist;
 use Relaticle\EmailIntegration\Models\EmailSignature;
+use Relaticle\EmailIntegration\Services\PrivacyService;
+use Relaticle\EmailIntegration\Support\SharingTierChangeConfirmation;
 
 /**
  * Per-account settings, reached from the "Settings" entry of an account's action
@@ -536,26 +538,40 @@ final class EmailAccountSettingsPage extends Page implements HasSchemas
     {
         return Action::make('save')
             ->label(__('filament/pages/email-account-settings.actions.save'))
+            ->requiresConfirmation(fn (): bool => $this->accountSharingTierChanged())
+            ->modalHeading(SharingTierChangeConfirmation::modalHeading())
+            ->modalDescription(fn (): string => SharingTierChangeConfirmation::modalDescription(
+                $this->resolvedAccountSharingTier(),
+            ))
+            ->schema(fn (): array => SharingTierChangeConfirmation::schema(
+                $this->resolvedAccountSharingTier(),
+            ))
             ->action(function (
                 UpdateConnectedAccountSettingsAction $updateSettings,
-                UpdateUserEmailPrivacySettingsAction $updatePrivacy,
             ): void {
                 $data = $this->form->getState();
 
                 /** @var User $user */
                 $user = auth()->user();
 
+                $sharingTierChanged = $this->accountSharingTierChanged();
+
                 $updateSettings->execute($this->account(), $data);
 
-                $tier = $data['default_email_sharing_tier'] ?? null;
-                $updatePrivacy->execute(
-                    $user,
-                    match (true) {
+                if ($sharingTierChanged) {
+                    $tier = $data['default_email_sharing_tier'] ?? null;
+                    $storedTier = match (true) {
                         $tier instanceof EmailPrivacyTier => $tier,
                         filled($tier) => EmailPrivacyTier::from((string) $tier),
                         default => null,
-                    },
-                );
+                    };
+
+                    resolve(SaveUserEmailSharingDefaultAction::class)->execute(
+                        $user,
+                        $storedTier,
+                        $this->privacy()->tierFromPreference($tier, $user),
+                    );
+                }
 
                 $this->account()->refresh();
 
@@ -564,6 +580,29 @@ final class EmailAccountSettingsPage extends Page implements HasSchemas
                     ->title(__('filament/pages/email-account-settings.notifications.saved'))
                     ->send();
             });
+    }
+
+    private function accountSharingTierChanged(): bool
+    {
+        /** @var User $user */
+        $user = auth()->user();
+
+        return $this->resolvedAccountSharingTier() !== $this->privacy()->effectiveSharingTierForUser($user);
+    }
+
+    private function resolvedAccountSharingTier(): EmailPrivacyTier
+    {
+        $data = $this->form->getState();
+
+        /** @var User $user */
+        $user = auth()->user();
+
+        return $this->privacy()->tierFromPreference($data['default_email_sharing_tier'] ?? null, $user);
+    }
+
+    private function privacy(): PrivacyService
+    {
+        return resolve(PrivacyService::class);
     }
 
     /**

@@ -22,6 +22,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Enums\Size;
 use Filament\Support\Icons\Heroicon;
 use Laravel\Pennant\Feature;
+use Relaticle\EmailIntegration\Actions\SaveTeamEmailSharingDefaultAction;
 use Relaticle\EmailIntegration\Actions\UpdateTeamContactCreationSettingsAction;
 use Relaticle\EmailIntegration\Actions\UpdateTeamEmailPrivacySettingsAction;
 use Relaticle\EmailIntegration\Actions\UpdateTeamEmailVisibilityAction;
@@ -31,6 +32,8 @@ use Relaticle\EmailIntegration\Enums\EmailPrivacyTier;
 use Relaticle\EmailIntegration\Enums\EmailVisibilityEnforcement;
 use Relaticle\EmailIntegration\Models\TeamEmailBlocklist;
 use Relaticle\EmailIntegration\Services\EmailVisibilityService;
+use Relaticle\EmailIntegration\Services\PrivacyService;
+use Relaticle\EmailIntegration\Support\SharingTierChangeConfirmation;
 
 final class EmailPrivacySettingsPage extends Page implements HasSchemas
 {
@@ -125,17 +128,21 @@ final class EmailPrivacySettingsPage extends Page implements HasSchemas
     {
         return Action::make('save')
             ->label(__('filament/pages/email-privacy-settings.actions.save'))
+            ->requiresConfirmation(fn (): bool => $this->tab === 'sharing' && $this->workspaceSharingTierChanged())
+            ->modalHeading(SharingTierChangeConfirmation::modalHeading())
+            ->modalDescription(fn (): string => SharingTierChangeConfirmation::modalDescription(
+                EmailPrivacyTier::from($this->default_email_sharing_tier),
+            ))
+            ->schema(fn (): array => SharingTierChangeConfirmation::schema(
+                EmailPrivacyTier::from($this->default_email_sharing_tier),
+            ))
             ->action(function (): void {
                 /** @var User $user */
                 $user = auth()->user();
                 $team = $user->currentTeam;
 
                 $saved = match ($this->tab) {
-                    'sharing' => tap(true, fn (): null => resolve(UpdateTeamEmailPrivacySettingsAction::class)->execute(
-                        $team,
-                        $user,
-                        EmailPrivacyTier::from($this->default_email_sharing_tier),
-                    )),
+                    'sharing' => $this->persistWorkspaceSharingSettings($team, $user),
                     'record_creation' => $this->persistContactCreationSettings(),
                     default => false,
                 };
@@ -149,6 +156,26 @@ final class EmailPrivacySettingsPage extends Page implements HasSchemas
                     ->title(__('filament/pages/email-privacy-settings.notifications.saved'))
                     ->send();
             });
+    }
+
+    private function workspaceSharingTierChanged(): bool
+    {
+        /** @var User $user */
+        $user = auth()->user();
+        $team = $user->currentTeam;
+
+        $newTier = EmailPrivacyTier::from($this->default_email_sharing_tier);
+
+        return $newTier !== $this->privacy()->workspaceSharingTier($team);
+    }
+
+    private function persistWorkspaceSharingSettings(Team $team, User $user): bool
+    {
+        $newTier = EmailPrivacyTier::from($this->default_email_sharing_tier);
+
+        resolve(SaveTeamEmailSharingDefaultAction::class)->execute($team, $user, $newTier);
+
+        return true;
     }
 
     public function addVisibilityContactAction(): Action
@@ -261,6 +288,11 @@ final class EmailPrivacySettingsPage extends Page implements HasSchemas
         );
 
         return true;
+    }
+
+    private function privacy(): PrivacyService
+    {
+        return resolve(PrivacyService::class);
     }
 
     /**
