@@ -64,7 +64,12 @@ final readonly class EmailSharingService
             return 0;
         }
 
-        return Email::query()->whereIn('id', $emailIds)->update(['privacy_tier' => $tier->value]);
+        return Email::query()
+            ->whereIn('id', $emailIds)
+            ->update([
+                'privacy_tier' => $tier->value,
+                'privacy_tier_customized' => true,
+            ]);
     }
 
     /**
@@ -72,7 +77,10 @@ final readonly class EmailSharingService
      */
     public function setEmailTier(Email $email, EmailPrivacyTier $tier): void
     {
-        $email->update(['privacy_tier' => $tier]);
+        $email->update([
+            'privacy_tier' => $tier,
+            'privacy_tier_customized' => true,
+        ]);
     }
 
     /**

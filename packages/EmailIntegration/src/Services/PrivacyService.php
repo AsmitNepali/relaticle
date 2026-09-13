@@ -90,6 +90,27 @@ final readonly class PrivacyService
         return $team->default_email_sharing_tier ?? EmailPrivacyTier::METADATA_ONLY;
     }
 
+    public function tierFromPreference(mixed $tierValue, User $user): EmailPrivacyTier
+    {
+        return match (true) {
+            $tierValue instanceof EmailPrivacyTier => $tierValue,
+            filled($tierValue) => EmailPrivacyTier::from((string) $tierValue),
+            default => $user->currentTeam instanceof Team
+                ? $this->workspaceSharingTier($user->currentTeam)
+                : EmailPrivacyTier::METADATA_ONLY,
+        };
+    }
+
+    public function effectiveSharingTierForUser(User $user): EmailPrivacyTier
+    {
+        return $this->defaultTierForUser($user, $user->currentTeam);
+    }
+
+    public function workspaceSharingTier(Team $team): EmailPrivacyTier
+    {
+        return $team->default_email_sharing_tier ?? EmailPrivacyTier::METADATA_ONLY;
+    }
+
     private function shareForViewer(Email $email, User $viewer): ?EmailShare
     {
         $email->loadMissing('shares');

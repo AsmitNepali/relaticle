@@ -39,6 +39,7 @@ return new class extends Migration
 
             // Privacy: owner-set default for team visibility (no shared_with_team boolean)
             $table->string('privacy_tier', 30)->default('metadata_only'); // private | metadata_only | subject | full
+            $table->boolean('privacy_tier_customized')->default(false);
 
             // Computed flags, set during sync
             $table->boolean('has_attachments')->default(false);

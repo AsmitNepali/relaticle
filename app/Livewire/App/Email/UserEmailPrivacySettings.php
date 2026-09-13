@@ -6,16 +6,22 @@ namespace App\Livewire\App\Email;
 
 use App\Livewire\BaseLivewireComponent;
 use Filament\Actions\Action;
+use Filament\Actions\Concerns\InteractsWithActions;
+use Filament\Actions\Contracts\HasActions;
 use Filament\Forms\Components\ViewField;
 use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\View\View;
-use Relaticle\EmailIntegration\Actions\UpdateUserEmailPrivacySettingsAction;
+use Relaticle\EmailIntegration\Actions\SaveUserEmailSharingDefaultAction;
 use Relaticle\EmailIntegration\Enums\EmailPrivacyTier;
+use Relaticle\EmailIntegration\Services\PrivacyService;
+use Relaticle\EmailIntegration\Support\SharingTierChangeConfirmation;
 
-final class UserEmailPrivacySettings extends BaseLivewireComponent
+final class UserEmailPrivacySettings extends BaseLivewireComponent implements HasActions
 {
+    use InteractsWithActions;
+
     /** @var array<string, mixed>|null */
     public ?array $data = [];
 
@@ -47,29 +53,63 @@ final class UserEmailPrivacySettings extends BaseLivewireComponent
                                 ]),
                             ]),
                         Actions::make([
-                            Action::make('saveTier')
-                                ->label(__('email/privacy-settings.actions.save'))
-                                ->submit('save'),
+                            $this->saveTierAction(),
                         ]),
                     ]),
             ])
             ->statePath('data');
     }
 
-    public function save(UpdateUserEmailPrivacySettingsAction $action): void
+    public function saveTierAction(): Action
+    {
+        return Action::make('saveTier')
+            ->label(__('email/privacy-settings.actions.save'))
+            ->requiresConfirmation(fn (): bool => $this->userSharingTierChanged())
+            ->modalHeading(SharingTierChangeConfirmation::modalHeading())
+            ->modalDescription(fn (): string => SharingTierChangeConfirmation::modalDescription(
+                $this->resolvedUserSharingTier(),
+            ))
+            ->schema(fn (): array => SharingTierChangeConfirmation::schema(
+                $this->resolvedUserSharingTier(),
+            ))
+            ->action(fn (): null => $this->persistUserSharingTier());
+    }
+
+    private function userSharingTierChanged(): bool
+    {
+        return $this->resolvedUserSharingTier() !== $this->privacy()->effectiveSharingTierForUser($this->authUser());
+    }
+
+    private function resolvedUserSharingTier(): EmailPrivacyTier
     {
         $data = $this->form->getState();
 
+        return $this->privacy()->tierFromPreference($data['default_email_sharing_tier'] ?? null, $this->authUser());
+    }
+
+    private function persistUserSharingTier(): void
+    {
+        $user = $this->authUser();
+        $data = $this->form->getState();
         $tierValue = $data['default_email_sharing_tier'] ?? null;
-        $defaultTier = match (true) {
+        $storedTier = match (true) {
             $tierValue instanceof EmailPrivacyTier => $tierValue,
-            filled($tierValue) => EmailPrivacyTier::from($tierValue),
+            filled($tierValue) => EmailPrivacyTier::from((string) $tierValue),
             default => null,
         };
 
-        $action->execute($this->authUser(), $defaultTier);
+        resolve(SaveUserEmailSharingDefaultAction::class)->execute(
+            $user,
+            $storedTier,
+            $this->privacy()->tierFromPreference($tierValue, $user),
+        );
 
         $this->sendNotification(__('email/privacy-settings.notifications.saved'));
+    }
+
+    private function privacy(): PrivacyService
+    {
+        return resolve(PrivacyService::class);
     }
 
     public function render(): View

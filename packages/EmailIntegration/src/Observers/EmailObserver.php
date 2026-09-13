@@ -6,6 +6,7 @@ namespace Relaticle\EmailIntegration\Observers;
 
 use App\Models\User;
 use Relaticle\EmailIntegration\Actions\LinkEmailAction;
+use Relaticle\EmailIntegration\Enums\EmailCreationSource;
 use Relaticle\EmailIntegration\Models\Email;
 use Relaticle\EmailIntegration\Services\PrivacyService;
 
@@ -22,6 +23,8 @@ final readonly class EmailObserver
 
         if ($owner && ! $email->isDirty('privacy_tier')) {
             $email->privacy_tier = $this->privacyService->defaultTierForUser($owner, $email->team);
+        } elseif ($email->isDirty('privacy_tier') && $email->creation_source !== EmailCreationSource::SYNC) {
+            $email->privacy_tier_customized = true;
         }
     }
 

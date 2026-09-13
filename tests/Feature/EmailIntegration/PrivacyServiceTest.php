@@ -302,6 +302,23 @@ it('defaultTierForUser uses the mailbox workspace default instead of the owner c
     expect($tier)->toBe(EmailPrivacyTier::PRIVATE);
 });
 
+it('tierFromPreference resolves an empty selection to the workspace default', function (): void {
+    $this->owner->update(['default_email_sharing_tier' => EmailPrivacyTier::SUBJECT]);
+    $this->team->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
+
+    $tier = $this->service->tierFromPreference('', $this->owner->fresh());
+
+    expect($tier)->toBe(EmailPrivacyTier::FULL);
+});
+
+it('tierFromPreference resolves an explicit selection to that tier', function (): void {
+    $this->team->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
+
+    $tier = $this->service->tierFromPreference(EmailPrivacyTier::PRIVATE->value, $this->owner->fresh());
+
+    expect($tier)->toBe(EmailPrivacyTier::PRIVATE);
+});
+
 it('defaultTierForUser returns metadata-only when the user has no current team', function (): void {
     $orphan = User::factory()->create([
         'current_team_id' => null,
