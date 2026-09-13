@@ -1,5 +1,17 @@
-<x-mail::message :reason="__('mail.footer.reason.mailbox_import', ['team' => $teamName])">
+<x-mail::layout>
 <x-slot:preheader>{{ __('mail.mailbox_import_complete.preheader', ['email' => $connectedEmail, 'team' => $teamName]) }}</x-slot:preheader>
+<x-slot:header></x-slot:header>
+
+<div style="text-align: center; margin: 0 0 24px;">
+<a href="{{ config('app.url') }}" style="display: inline-block;">
+<img src="{{ asset('brand/email-logo.png') }}" class="logo logo-light" alt="Relaticle" width="140" height="45" style="height: 45px; width: 140px; border: none;">
+<!--[if !mso]><! -->
+<div class="logo-dark-wrap" style="display: none; mso-hide: all; max-height: 0; overflow: hidden;">
+<img src="{{ asset('brand/email-logo-dark.png') }}" class="logo logo-dark" alt="Relaticle" width="140" height="45" style="height: 45px; width: 140px; border: none;">
+</div>
+<!--<![endif]-->
+</a>
+</div>
 
 <p>{{ __('mail.mailbox_import_complete.greeting', ['name' => $greetingName]) }}</p>
 
@@ -24,6 +36,7 @@
 </x-mail::button>
 
 <x-slot:subcopy>
+<x-mail::subcopy>
 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-top: 1px solid #e4e4e7; margin-top: 8px;">
 <tr>
 <td align="center" width="50%" style="padding: 24px 12px 0;">
@@ -36,5 +49,10 @@
 </td>
 </tr>
 </table>
+</x-mail::subcopy>
 </x-slot:subcopy>
-</x-mail::message>
+
+<x-slot:footer>
+<x-mail::footer :reason="__('mail.footer.reason.mailbox_import', ['team' => $teamName])" />
+</x-slot:footer>
+</x-mail::layout>
