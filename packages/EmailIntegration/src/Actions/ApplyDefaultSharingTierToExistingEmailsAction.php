@@ -42,4 +42,42 @@ final readonly class ApplyDefaultSharingTierToExistingEmailsAction
             ->where('privacy_tier_customized', false)
             ->update(['privacy_tier' => $tier->value]);
     }
+
+    public function executeForUserUsingWorkspaceDefaults(User $user): int
+    {
+        $teamIds = Email::query()
+            ->where('user_id', $user->getKey())
+            ->where('privacy_tier_customized', false)
+            ->distinct()
+            ->pluck('team_id');
+
+        if ($teamIds->isEmpty()) {
+            return 0;
+        }
+
+        $teams = Team::query()
+            ->whereIn('id', $teamIds)
+            ->get()
+            ->keyBy('id');
+
+        $updated = 0;
+
+        foreach ($teamIds as $teamId) {
+            $team = $teams->get($teamId);
+
+            if ($team === null) {
+                continue;
+            }
+
+            $tier = $team->default_email_sharing_tier ?? EmailPrivacyTier::METADATA_ONLY;
+
+            $updated += Email::query()
+                ->where('user_id', $user->getKey())
+                ->where('team_id', $teamId)
+                ->where('privacy_tier_customized', false)
+                ->update(['privacy_tier' => $tier->value]);
+        }
+
+        return $updated;
+    }
 }

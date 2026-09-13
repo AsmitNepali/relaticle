@@ -121,6 +121,35 @@ it('updates non-customized emails across every workspace for a user', function (
         ->and($otherTeamEmail->fresh()->privacy_tier)->toBe(EmailPrivacyTier::FULL);
 });
 
+it('resolves each workspace default when resetting a user override', function (): void {
+    $privateTeam = Team::factory()->create([
+        'user_id' => $this->owner->getKey(),
+        'default_email_sharing_tier' => EmailPrivacyTier::PRIVATE,
+    ]);
+    $this->owner->teams()->attach($privateTeam, ['role' => 'admin']);
+    $this->team->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
+
+    $privateAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
+        'team_id' => $privateTeam->getKey(),
+        'user_id' => $this->owner->getKey(),
+    ]));
+
+    $fullWorkspaceEmail = makeRetroactiveEmail(['privacy_tier' => EmailPrivacyTier::SUBJECT]);
+    $privateWorkspaceEmail = Email::factory()->create([
+        'team_id' => $privateTeam->getKey(),
+        'user_id' => $this->owner->getKey(),
+        'connected_account_id' => $privateAccount->getKey(),
+        'privacy_tier' => EmailPrivacyTier::SUBJECT,
+        'privacy_tier_customized' => false,
+    ]);
+
+    $updated = $this->action->executeForUserUsingWorkspaceDefaults($this->owner);
+
+    expect($updated)->toBe(2)
+        ->and($fullWorkspaceEmail->fresh()->privacy_tier)->toBe(EmailPrivacyTier::FULL)
+        ->and($privateWorkspaceEmail->fresh()->privacy_tier)->toBe(EmailPrivacyTier::PRIVATE);
+});
+
 it('includes team owner emails when the owner is not on the team_user pivot', function (): void {
     $this->team->users()->detach($this->owner->getKey());
 
