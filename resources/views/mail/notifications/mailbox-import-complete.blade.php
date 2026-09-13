@@ -2,16 +2,7 @@
 <x-slot:preheader>{{ __('mail.mailbox_import_complete.preheader', ['email' => $connectedEmail, 'team' => $teamName]) }}</x-slot:preheader>
 <x-slot:header></x-slot:header>
 
-<div style="text-align: center; margin: 0 0 24px;">
-<a href="{{ config('app.url') }}" style="display: inline-block;">
-<img src="{{ asset('brand/email-logo.png') }}" class="logo logo-light" alt="Relaticle" width="140" height="45" style="height: 45px; width: 140px; border: none;">
-<!--[if !mso]><! -->
-<div class="logo-dark-wrap" style="display: none; mso-hide: all; max-height: 0; overflow: hidden;">
-<img src="{{ asset('brand/email-logo-dark.png') }}" class="logo logo-dark" alt="Relaticle" width="140" height="45" style="height: 45px; width: 140px; border: none;">
-</div>
-<!--<![endif]-->
-</a>
-</div>
+@include('mail.partials.logo-lockup')
 
 <p>{{ __('mail.mailbox_import_complete.greeting', ['name' => $greetingName]) }}</p>
 

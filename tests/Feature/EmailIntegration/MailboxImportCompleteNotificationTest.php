@@ -27,8 +27,8 @@ it('renders the mailbox import complete mail with sync stats', function (): void
         ->and($html)->toContain('142')
         ->and($html)->toContain('6')
         ->and($html)->toContain(__('mail.mailbox_import_complete.cta'))
-        ->and($html)->toContain('brand/email-logo.png')
-        ->and($html)->toContain('alt="Relaticle"');
+        ->and($html)->toContain('brand/email-logo-lockup.png')
+        ->and($html)->toContain('brand/email-logo-lockup-dark.png');
 });
 
 it('queues the mailbox import complete notification', function (): void {
