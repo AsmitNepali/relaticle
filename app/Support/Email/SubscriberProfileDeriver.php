@@ -118,7 +118,7 @@ final readonly class SubscriberProfileDeriver
             return true;
         }
 
-        $summaries = AiSummary::query()->whereIn('team_id', $user->allTeams()->pluck('id'));
+        $summaries = AiSummary::query()->whereIn('workspace_id', $user->allWorkspaces()->pluck('id'));
 
         if ($excluding instanceof AiSummary) {
             $summaries->whereKeyNot($excluding->getKey());
