@@ -130,15 +130,21 @@ final class EmailPrivacySettingsPage extends Page implements HasSchemas
     {
         return Action::make('save')
             ->label(__('filament/pages/email-privacy-settings.actions.save'))
-            ->requiresConfirmation(fn (): bool => $this->tab === 'sharing' && $this->workspaceSharingTierChanged())
-            ->modalHeading(SharingTierChangeConfirmation::modalHeading())
+            ->requiresConfirmation(fn (): bool => $this->shouldConfirmSave())
+            ->modalHeading(fn (): ?string => $this->shouldConfirmSave()
+                ? SharingTierChangeConfirmation::modalHeading()
+                : null)
             ->modalWidth(Width::Small)
-            ->modalDescription(fn (): string => SharingTierChangeConfirmation::modalDescription(
-                EmailPrivacyTier::from($this->default_email_sharing_tier),
-            ))
-            ->schema(fn (): array => SharingTierChangeConfirmation::schema(
-                EmailPrivacyTier::from($this->default_email_sharing_tier),
-            ))
+            ->modalDescription(fn (): ?string => $this->shouldConfirmSave()
+                ? SharingTierChangeConfirmation::modalDescription(
+                    EmailPrivacyTier::from($this->default_email_sharing_tier),
+                )
+                : null)
+            ->schema(fn (): array => $this->shouldConfirmSave()
+                ? SharingTierChangeConfirmation::schema(
+                    EmailPrivacyTier::from($this->default_email_sharing_tier),
+                )
+                : [])
             ->action(function (): void {
                 /** @var User $user */
                 $user = auth()->user();
@@ -159,6 +165,11 @@ final class EmailPrivacySettingsPage extends Page implements HasSchemas
                     ->title(__('filament/pages/email-privacy-settings.notifications.saved'))
                     ->send();
             });
+    }
+
+    private function shouldConfirmSave(): bool
+    {
+        return $this->tab === 'sharing' && $this->workspaceSharingTierChanged();
     }
 
     private function workspaceSharingTierChanged(): bool
