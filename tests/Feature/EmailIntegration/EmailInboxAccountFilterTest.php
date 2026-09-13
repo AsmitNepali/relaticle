@@ -9,37 +9,37 @@ use Relaticle\EmailIntegration\Models\ConnectedAccount;
 use Relaticle\EmailIntegration\Models\Email;
 
 beforeEach(function (): void {
-    $this->owner = User::factory()->withTeam()->create();
-    $this->team = $this->owner->currentTeam;
+    $this->owner = User::factory()->withWorkspace()->create();
+    $this->workspace = $this->owner->currentWorkspace;
 
     $this->defaultAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
         'is_default' => true,
     ]));
 
     $this->secondaryAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
         'is_default' => false,
     ]));
 
     $this->defaultEmail = Email::factory()->inbound()->full()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
         'connected_account_id' => $this->defaultAccount->getKey(),
         'sent_at' => now(),
     ]);
 
     $this->secondaryEmail = Email::factory()->inbound()->full()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
         'connected_account_id' => $this->secondaryAccount->getKey(),
         'sent_at' => now()->subHour(),
     ]);
 
     $this->actingAs($this->owner);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 });
 
 it('lands on the default account and shows only its emails', function (): void {

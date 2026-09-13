@@ -7,8 +7,8 @@ use App\Models\Company;
 use App\Models\CustomField;
 use App\Models\CustomFieldValue;
 use App\Models\People;
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Filament\Facades\Filament;
 use Illuminate\Database\Eloquent\Factories\Sequence;
 use Illuminate\Http\UploadedFile;
@@ -45,15 +45,15 @@ use function Pest\Laravel\actingAs;
 mutates(EmailComposer::class, SaveEmailDraftAction::class, DeleteEmailDraftAction::class, RecipientSuggestionService::class, ConnectedAccount::class, QueuedSendNotifier::class, AllowedRecipientService::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'user_id' => $this->user->id,
-        'team_id' => $this->user->current_team_id,
+        'workspace_id' => $this->user->current_workspace_id,
         'status' => 'active',
     ]));
     actingAs($this->user);
     Filament::setCurrentPanel(Filament::getPanel('app'));
-    Filament::setTenant($this->user->currentTeam);
+    Filament::setTenant($this->user->currentWorkspace);
 
     AllowedComposerRecipient::seedMany($this->user, [
         'lead@example.com',
@@ -149,7 +149,7 @@ it('redirects to oauth when grant permission is clicked on a mailbox that needs 
         ->dispatch('composer:open')
         ->callAction('grantSendPermission');
 
-    assertRedirectedToMailboxOAuth($component, 'gmail', $this->account->team);
+    assertRedirectedToMailboxOAuth($component, 'gmail', $this->account->workspace);
 });
 
 it('does not queue mail from send when the mailbox has a sync error', function (): void {
@@ -181,7 +181,7 @@ it('redirects to oauth when grant permission is clicked', function (): void {
         ->dispatch('composer:open')
         ->callAction('grantSendPermission');
 
-    assertRedirectedToMailboxOAuth($component, 'gmail', $this->account->team);
+    assertRedirectedToMailboxOAuth($component, 'gmail', $this->account->workspace);
 });
 
 it('opens from a sendable mailbox when another connected account cannot send', function (): void {
@@ -196,7 +196,7 @@ it('opens from a sendable mailbox when another connected account cannot send', f
 
     $sendable = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'user_id' => $this->user->id,
-        'team_id' => $this->user->current_team_id,
+        'workspace_id' => $this->user->current_workspace_id,
         'status' => 'active',
         'is_default' => false,
         'capabilities' => [
@@ -220,7 +220,7 @@ it('opens from a sendable mailbox when the default mailbox has a sync error', fu
 
     $sendable = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'user_id' => $this->user->id,
-        'team_id' => $this->user->current_team_id,
+        'workspace_id' => $this->user->current_workspace_id,
         'status' => 'active',
         'is_default' => false,
     ]));
@@ -271,19 +271,19 @@ it('queues an email through SendEmailAction on send with the persisted body and 
 });
 
 it('resolves merge tags from the primary To recipient when compose was not opened from a record', function (): void {
-    $person = People::factory()->for($this->user->currentTeam)->create([
+    $person = People::factory()->for($this->user->currentWorkspace)->create([
         'name' => 'Laravel Projects',
         'creator_id' => $this->user->getKey(),
     ]);
 
     $emailsField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', $person->team_id)
+        ->where('tenant_id', $person->workspace_id)
         ->where('entity_type', 'people')
         ->where('code', PeopleField::EMAILS->value)
         ->firstOrFail();
 
-    $person->saveCustomFieldValue($emailsField, ['crm@example.com'], $person->team);
+    $person->saveCustomFieldValue($emailsField, ['crm@example.com'], $person->workspace);
 
     AllowedComposerRecipient::seed($this->user, 'crm@example.com');
 
@@ -347,7 +347,7 @@ it('does not attach a storage file referenced by a composer image url', function
 });
 
 it('links a queued send to the record the composer was opened from', function (): void {
-    $person = People::factory()->recycle([$this->user, $this->user->currentTeam])->create();
+    $person = People::factory()->recycle([$this->user, $this->user->currentWorkspace])->create();
 
     Livewire::test(EmailComposer::class)
         ->call('open', [
@@ -367,8 +367,8 @@ it('links a queued send to the record the composer was opened from', function ()
 });
 
 it('does not link a queued send to a record from another workspace', function (): void {
-    $foreign = User::factory()->withTeam()->create();
-    $person = People::factory()->recycle([$foreign, $foreign->currentTeam])->create();
+    $foreign = User::factory()->withWorkspace()->create();
+    $person = People::factory()->recycle([$foreign, $foreign->currentWorkspace])->create();
 
     Livewire::test(EmailComposer::class)
         ->call('open', [
@@ -436,7 +436,7 @@ it('swaps the visible signature when the sending account changes', function (): 
     ]));
     $secondAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'user_id' => $this->user->id,
-        'team_id' => $this->user->current_team_id,
+        'workspace_id' => $this->user->current_workspace_id,
         'status' => 'active',
     ]));
     EmailSignature::withoutEvents(fn () => EmailSignature::factory()->create([
@@ -502,16 +502,16 @@ it('includes CRM addresses outside the autocomplete cap in the allowed recipient
     $seedEmail = function (People $person, string $email): void {
         $emailsField = CustomField::query()
             ->withoutGlobalScopes()
-            ->where('tenant_id', $person->team_id)
+            ->where('tenant_id', $person->workspace_id)
             ->where('entity_type', 'people')
             ->where('code', PeopleField::EMAILS->value)
             ->firstOrFail();
 
-        $person->saveCustomFieldValue($emailsField, [$email], $person->team);
+        $person->saveCustomFieldValue($emailsField, [$email], $person->workspace);
     };
 
     foreach (range(1, 300) as $i) {
-        $person = People::factory()->for($this->user->currentTeam)->create([
+        $person = People::factory()->for($this->user->currentWorkspace)->create([
             'name' => sprintf('Person %03d', $i),
             'creator_id' => $this->user->getKey(),
         ]);
@@ -519,7 +519,7 @@ it('includes CRM addresses outside the autocomplete cap in the allowed recipient
         $seedEmail($person, "cap{$i}@example.com");
     }
 
-    $overflow = People::factory()->for($this->user->currentTeam)->create([
+    $overflow = People::factory()->for($this->user->currentWorkspace)->create([
         'name' => 'Z Overflow Contact',
         'creator_id' => $this->user->getKey(),
     ]);
@@ -599,10 +599,10 @@ it('restores an already-open composer instead of resetting it when composer:open
 });
 
 it('does not leak another team\'s signature content via a foreign signatureId', function (): void {
-    $otherUser = User::factory()->withTeam()->create();
+    $otherUser = User::factory()->withWorkspace()->create();
     $otherAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'user_id' => $otherUser->id,
-        'team_id' => $otherUser->current_team_id,
+        'workspace_id' => $otherUser->current_workspace_id,
         'status' => 'active',
     ]));
     $otherSignature = EmailSignature::withoutEvents(fn () => EmailSignature::factory()->create([
@@ -624,10 +624,10 @@ it('does not leak another team\'s signature content via a foreign signatureId', 
 });
 
 it('rejects a client-posted accountId that does not belong to the user', function (): void {
-    $otherUser = User::factory()->withTeam()->create();
+    $otherUser = User::factory()->withWorkspace()->create();
     $otherAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'user_id' => $otherUser->id,
-        'team_id' => $otherUser->current_team_id,
+        'workspace_id' => $otherUser->current_workspace_id,
         'status' => 'active',
     ]));
 
@@ -682,7 +682,7 @@ it('does not notify when closing an empty composer', function (): void {
 
 it('notifies when an inline reply draft is saved on dismiss', function (): void {
     $email = Email::factory()->create([
-        'team_id' => $this->user->current_team_id,
+        'workspace_id' => $this->user->current_workspace_id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'privacy_tier' => EmailPrivacyTier::FULL,
@@ -740,15 +740,15 @@ it('never lists drafts in the mail panes', function (): void {
 });
 
 it('does not load another user\'s draft into the composer', function (): void {
-    $otherUser = User::factory()->withTeam()->create();
+    $otherUser = User::factory()->withWorkspace()->create();
     $otherAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'user_id' => $otherUser->id,
-        'team_id' => $otherUser->current_team_id,
+        'workspace_id' => $otherUser->current_workspace_id,
         'status' => 'active',
     ]));
 
     actingAs($otherUser);
-    Filament::setTenant($otherUser->currentTeam);
+    Filament::setTenant($otherUser->currentWorkspace);
 
     $foreignDraft = Livewire::test(EmailComposer::class)
         ->dispatch('composer:open')
@@ -761,7 +761,7 @@ it('does not load another user\'s draft into the composer', function (): void {
     expect($draft->connected_account_id)->toBe($otherAccount->id);
 
     actingAs($this->user);
-    Filament::setTenant($this->user->currentTeam);
+    Filament::setTenant($this->user->currentWorkspace);
 
     Livewire::test(EmailComposer::class)
         ->dispatch('composer:open', draftId: $draft->id)
@@ -795,17 +795,17 @@ it('closes and queues exactly once even when the draft row was already deleted b
 });
 
 it('does not load a draft that belongs to a different team of the same user', function (): void {
-    $otherTeam = Team::factory()->create(['user_id' => $this->user->getKey()]);
-    $this->user->teams()->attach($otherTeam, ['role' => 'admin']);
+    $otherTeam = Workspace::factory()->create(['user_id' => $this->user->getKey()]);
+    $this->user->workspaces()->attach($otherTeam, ['role' => 'admin']);
 
     $otherTeamAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'user_id' => $this->user->id,
-        'team_id' => $otherTeam->id,
+        'workspace_id' => $otherTeam->id,
         'status' => 'active',
     ]));
 
     $draft = Email::factory()->create([
-        'team_id' => $otherTeam->id,
+        'workspace_id' => $otherTeam->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $otherTeamAccount->id,
         'status' => EmailStatus::DRAFT,
@@ -823,11 +823,11 @@ it('does not load a draft that belongs to a different team of the same user', fu
 });
 
 it('excludes a teammate\'s unsent draft recipients from recipient suggestions', function (): void {
-    $teammate = User::factory()->create(['current_team_id' => $this->user->current_team_id]);
+    $teammate = User::factory()->create(['current_workspace_id' => $this->user->current_workspace_id]);
 
     $teammateAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'user_id' => $teammate->id,
-        'team_id' => $this->user->current_team_id,
+        'workspace_id' => $this->user->current_workspace_id,
         'status' => 'active',
     ]));
 
@@ -862,7 +862,7 @@ it('excludes protected-recipient addresses from recipient suggestions', function
     $address = 'vip@protected.example';
 
     TeamEmailBlocklist::factory()->protected()->email($address)->create([
-        'team_id' => $this->user->current_team_id,
+        'workspace_id' => $this->user->current_workspace_id,
         'created_by' => $this->user->id,
     ]);
 
@@ -897,7 +897,7 @@ it('includes the owner\'s own private and BCC addresses in recipient suggestions
     $bcc = 'own-bcc@example.com';
 
     $email = Email::factory()->create([
-        'team_id' => $this->user->current_team_id,
+        'workspace_id' => $this->user->current_workspace_id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'status' => EmailStatus::SYNCED,
@@ -924,11 +924,11 @@ it('includes the owner\'s own private and BCC addresses in recipient suggestions
 });
 
 it('adds every company team member primary email to recipients', function (): void {
-    $company = Company::factory()->for($this->user->currentTeam)->create(['name' => 'Basepoint']);
+    $company = Company::factory()->for($this->user->currentWorkspace)->create(['name' => 'Basepoint']);
 
     $people = People::factory()
         ->count(2)
-        ->for($this->user->currentTeam)
+        ->for($this->user->currentWorkspace)
         ->for($company)
         ->sequence(
             ['name' => 'Natalie Hughes'],
@@ -938,7 +938,7 @@ it('adds every company team member primary email to recipients', function (): vo
 
     $emailField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', $this->user->current_team_id)
+        ->where('tenant_id', $this->user->current_workspace_id)
         ->where('entity_type', 'people')
         ->where('code', 'emails')
         ->sole();
@@ -947,7 +947,7 @@ it('adds every company team member primary email to recipients', function (): vo
         'custom_field_id' => $emailField->id,
         'entity_type' => 'people',
         'entity_id' => $people[0]->id,
-        'tenant_id' => $this->user->current_team_id,
+        'tenant_id' => $this->user->current_workspace_id,
         'json_value' => ['natalie@example.com', 'natalie.personal@example.com'],
     ]);
 
@@ -955,7 +955,7 @@ it('adds every company team member primary email to recipients', function (): vo
         'custom_field_id' => $emailField->id,
         'entity_type' => 'people',
         'entity_id' => $people[1]->id,
-        'tenant_id' => $this->user->current_team_id,
+        'tenant_id' => $this->user->current_workspace_id,
         'json_value' => ['asha@example.com'],
     ]);
 
@@ -971,12 +971,12 @@ it('adds every company team member primary email to recipients', function (): vo
 });
 
 it('includes company team recipient options outside the first person option page', function (): void {
-    $earlyCompany = Company::factory()->for($this->user->currentTeam)->create(['name' => 'Alpha']);
-    $targetCompany = Company::factory()->for($this->user->currentTeam)->create(['name' => 'Zephyr']);
+    $earlyCompany = Company::factory()->for($this->user->currentWorkspace)->create(['name' => 'Alpha']);
+    $targetCompany = Company::factory()->for($this->user->currentWorkspace)->create(['name' => 'Zephyr']);
 
     People::factory()
         ->count(300)
-        ->for($this->user->currentTeam)
+        ->for($this->user->currentWorkspace)
         ->for($earlyCompany)
         ->sequence(fn (Sequence $sequence): array => [
             'name' => sprintf('A Contact %03d', $sequence->index),
@@ -984,13 +984,13 @@ it('includes company team recipient options outside the first person option page
         ->create();
 
     $person = People::factory()
-        ->for($this->user->currentTeam)
+        ->for($this->user->currentWorkspace)
         ->for($targetCompany)
         ->create(['name' => 'Zoe Late']);
 
     $emailField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', $this->user->current_team_id)
+        ->where('tenant_id', $this->user->current_workspace_id)
         ->where('entity_type', 'people')
         ->where('code', 'emails')
         ->sole();
@@ -999,7 +999,7 @@ it('includes company team recipient options outside the first person option page
         'custom_field_id' => $emailField->id,
         'entity_type' => 'people',
         'entity_id' => $person->id,
-        'tenant_id' => $this->user->current_team_id,
+        'tenant_id' => $this->user->current_workspace_id,
         'json_value' => ['zoe@example.com'],
     ]);
 
@@ -1130,14 +1130,14 @@ it('sends a reopened draft with its saved attachments and leaves no orphaned fil
 it('does not copy another user\'s saved draft attachment from client-controlled state', function (): void {
     Storage::fake(EmailAttachment::DISK);
 
-    $otherUser = User::factory()->withTeam()->create();
+    $otherUser = User::factory()->withWorkspace()->create();
     $otherAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'user_id' => $otherUser->id,
-        'team_id' => $otherUser->current_team_id,
+        'workspace_id' => $otherUser->current_workspace_id,
         'status' => 'active',
     ]));
     $foreignDraft = Email::factory()->create([
-        'team_id' => $otherUser->current_team_id,
+        'workspace_id' => $otherUser->current_workspace_id,
         'user_id' => $otherUser->id,
         'connected_account_id' => $otherAccount->id,
         'status' => EmailStatus::DRAFT,
@@ -1180,14 +1180,14 @@ it('does not copy another user\'s saved draft attachment from client-controlled 
 it('does not copy another email\'s attachments from client-controlled forward state', function (): void {
     Storage::fake(EmailAttachment::DISK);
 
-    $otherUser = User::factory()->withTeam()->create();
+    $otherUser = User::factory()->withWorkspace()->create();
     $otherAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'user_id' => $otherUser->id,
-        'team_id' => $otherUser->current_team_id,
+        'workspace_id' => $otherUser->current_workspace_id,
         'status' => 'active',
     ]));
     $foreignEmail = Email::factory()->create([
-        'team_id' => $otherUser->current_team_id,
+        'workspace_id' => $otherUser->current_workspace_id,
         'user_id' => $otherUser->id,
         'connected_account_id' => $otherAccount->id,
         'status' => EmailStatus::SYNCED,
@@ -1232,7 +1232,7 @@ it('downloads a provider-stored attachment when forwarding', function (): void {
     $this->account->update(['email_address' => 'me@example.com']);
 
     $inbound = Email::factory()->create([
-        'team_id' => $this->user->current_team_id,
+        'workspace_id' => $this->user->current_workspace_id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'status' => EmailStatus::SYNCED,
@@ -1296,7 +1296,7 @@ it('does not queue a forward when a provider attachment cannot be downloaded', f
     $this->account->update(['email_address' => 'me@example.com']);
 
     $inbound = Email::factory()->create([
-        'team_id' => $this->user->current_team_id,
+        'workspace_id' => $this->user->current_workspace_id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'status' => EmailStatus::SYNCED,
@@ -1356,7 +1356,7 @@ it('keeps an undownloadable forwarded attachment on a saved draft', function ():
     $this->account->update(['email_address' => 'me@example.com']);
 
     $inbound = Email::factory()->create([
-        'team_id' => $this->user->current_team_id,
+        'workspace_id' => $this->user->current_workspace_id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'status' => EmailStatus::SYNCED,
@@ -1413,7 +1413,7 @@ it('does not send a reopened forward when a saved attachment is still unavailabl
     $this->account->update(['email_address' => 'me@example.com']);
 
     $inbound = Email::factory()->create([
-        'team_id' => $this->user->current_team_id,
+        'workspace_id' => $this->user->current_workspace_id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'status' => EmailStatus::SYNCED,
@@ -1475,7 +1475,7 @@ it('sends a reopened forward once an unavailable attachment can be downloaded', 
     $this->account->update(['email_address' => 'me@example.com']);
 
     $inbound = Email::factory()->create([
-        'team_id' => $this->user->current_team_id,
+        'workspace_id' => $this->user->current_workspace_id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'status' => EmailStatus::SYNCED,
@@ -1572,7 +1572,7 @@ it('falls back to the default account and warns when a draft\'s connected accoun
 
     $fallbackAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'user_id' => $this->user->id,
-        'team_id' => $this->user->current_team_id,
+        'workspace_id' => $this->user->current_workspace_id,
         'status' => 'active',
     ]));
 
@@ -1596,7 +1596,7 @@ it('fills subject and body from a template and keeps the signature below it', fu
     ]);
 
     $template = EmailTemplate::factory()->create([
-        'team_id' => $this->user->current_team_id,
+        'workspace_id' => $this->user->current_workspace_id,
         'created_by' => $this->user->id,
         'is_shared' => true,
         'subject' => 'Renewal options',
@@ -1631,7 +1631,7 @@ it('saves the current message as a template from the composer', function (): voi
         ->assertHasNoActionErrors();
 
     $template = EmailTemplate::query()->where('name', 'Renewal outreach')->sole();
-    expect($template->team_id)->toBe($this->user->current_team_id)
+    expect($template->workspace_id)->toBe($this->user->current_workspace_id)
         ->and($template->created_by)->toBe($this->user->id)
         ->and($template->is_shared)->toBeTrue()
         ->and($template->body_html)->toContain('Here are your options.');
@@ -1662,7 +1662,7 @@ it('creates a signature from the composer and applies it to the message', functi
 
 it('ignores a template belonging to another team', function (): void {
     $foreign = EmailTemplate::factory()->create([
-        'team_id' => Team::factory()->create()->id,
+        'workspace_id' => Workspace::factory()->create()->id,
         'is_shared' => true,
         'subject' => 'Not yours',
     ]);
@@ -1773,16 +1773,16 @@ function teammateSentEmail(
     EmailParticipantRole $role,
     bool $isInternal = false,
 ): void {
-    $teammate = User::factory()->create(['current_team_id' => $viewer->current_team_id]);
+    $teammate = User::factory()->create(['current_workspace_id' => $viewer->current_workspace_id]);
 
     $teammateAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
         'user_id' => $teammate->id,
-        'team_id' => $viewer->current_team_id,
+        'workspace_id' => $viewer->current_workspace_id,
         'status' => 'active',
     ]));
 
     $email = Email::factory()->create([
-        'team_id' => $viewer->current_team_id,
+        'workspace_id' => $viewer->current_workspace_id,
         'user_id' => $teammate->id,
         'connected_account_id' => $teammateAccount->id,
         'status' => EmailStatus::SYNCED,

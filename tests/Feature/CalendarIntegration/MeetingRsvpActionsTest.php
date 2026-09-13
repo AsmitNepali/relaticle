@@ -24,14 +24,14 @@ use Relaticle\EmailIntegration\Services\MeetingRespondentResolver;
 mutates(MeetingRsvpActions::class, MeetingDetailInfolist::class, MeetingHeaderEntry::class, MeetingPolicy::class, MeetingRespondentResolver::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(
         fn () => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->user->id,
             'email_address' => 'me@example.com',
             'capabilities' => ['email' => true, 'calendar' => true],
@@ -42,7 +42,7 @@ beforeEach(function (): void {
 function meetingRsvpInvitation(ConnectedAccount $account, array $overrides = []): Meeting
 {
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
         'provider_event_id' => 'evt-list-1',
         'response_status' => $overrides['response_status'] ?? AttendeeResponseStatus::NEEDS_ACTION,
@@ -98,7 +98,7 @@ it('shows RSVP actions on the meeting card for invitations the mailbox owner can
 
 it('shows RSVP actions when the signed-in user is the host even without a self attendee', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->account->team_id,
+        'workspace_id' => $this->account->workspace_id,
         'connected_account_id' => $this->account->getKey(),
         'provider_event_id' => 'evt-host-1',
         'response_status' => AttendeeResponseStatus::ACCEPTED,
@@ -149,10 +149,10 @@ it('hides RSVP actions for a teammate who is not listed on the guest list', func
     ]);
 
     $teammate = User::factory()->create();
-    $this->team->users()->attach($teammate, ['role' => 'admin']);
-    $teammate->switchTeam($this->team);
+    $this->workspace->users()->attach($teammate, ['role' => 'admin']);
+    $teammate->switchTeam($this->workspace);
     $this->actingAs($teammate);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 
     meetingRsvpOnRecord($meeting)
         ->assertCanSeeTableRecords([$meeting])
@@ -173,11 +173,11 @@ it('hides RSVP actions when only the workspace email is invited but no matching 
     ]);
 
     $teammate = User::factory()->create(['email' => 'mail2asmitnepali@gmail.com']);
-    $this->team->users()->attach($teammate, ['role' => 'admin']);
-    $teammate->switchTeam($this->team);
+    $this->workspace->users()->attach($teammate, ['role' => 'admin']);
+    $teammate->switchTeam($this->workspace);
 
     ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $teammate->id,
         'email_address' => 'mail2asmitnepali99@gmail.com',
         'capabilities' => ['email' => true, 'calendar' => true],
@@ -192,7 +192,7 @@ it('hides RSVP actions when only the workspace email is invited but no matching 
     ]);
 
     $this->actingAs($teammate);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 
     meetingRsvpOnRecord($meeting)
         ->assertCanSeeTableRecords([$meeting])
@@ -206,11 +206,11 @@ it('shows RSVP actions when the workspace email is invited and the matching cale
     $meeting = meetingRsvpInvitation($this->account);
 
     $teammate = User::factory()->create(['email' => 'mail2asmitnepali@gmail.com']);
-    $this->team->users()->attach($teammate, ['role' => 'admin']);
-    $teammate->switchTeam($this->team);
+    $this->workspace->users()->attach($teammate, ['role' => 'admin']);
+    $teammate->switchTeam($this->workspace);
 
     ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $teammate->id,
         'email_address' => 'mail2asmitnepali@gmail.com',
         'capabilities' => ['email' => true, 'calendar' => true],
@@ -225,7 +225,7 @@ it('shows RSVP actions when the workspace email is invited and the matching cale
     ]);
 
     $this->actingAs($teammate);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 
     meetingRsvpOnRecord($meeting)
         ->assertCanSeeTableRecords([$meeting])
@@ -246,11 +246,11 @@ it('shows RSVP actions when only the connected mailbox email is on the guest lis
     ]);
 
     $teammate = User::factory()->create(['email' => 'mail2asmitnepali@gmail.com']);
-    $this->team->users()->attach($teammate, ['role' => 'admin']);
-    $teammate->switchTeam($this->team);
+    $this->workspace->users()->attach($teammate, ['role' => 'admin']);
+    $teammate->switchTeam($this->workspace);
 
     ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $teammate->id,
         'email_address' => 'mail2asmitnepali99@gmail.com',
         'capabilities' => ['email' => true, 'calendar' => true],
@@ -264,7 +264,7 @@ it('shows RSVP actions when only the connected mailbox email is on the guest lis
     ]);
 
     $this->actingAs($teammate);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 
     meetingRsvpOnRecord($meeting)
         ->assertCanSeeTableRecords([$meeting])
@@ -299,7 +299,7 @@ it('accepts an invitation from the meeting card and updates the calendar', funct
 
 function meetingRsvpOnRecord(Meeting $meeting): Testable
 {
-    $person = People::factory()->create(['team_id' => $meeting->team_id]);
+    $person = People::factory()->create(['workspace_id' => $meeting->workspace_id]);
     $meeting->people()->attach($person, ['link_source' => 'manual']);
 
     return livewire(MeetingsRelationManager::class, ['ownerRecord' => $person, 'pageClass' => ViewPeople::class]);

@@ -8,6 +8,7 @@ use App\ActivityLog\AppEventPalette;
 use App\ActivityLog\AppEventRenderer;
 use App\ActivityLog\MeetingEventPalette;
 use App\ActivityLog\MeetingEventRenderer;
+use App\Enums\AccentColor;
 use App\Enums\SupportFormType;
 use App\Features\Billing as BillingFeature;
 use App\Features\EmailIntegration;
@@ -19,10 +20,12 @@ use App\Filament\Pages\Auth\Login;
 use App\Filament\Pages\Auth\RequestPasswordReset;
 use App\Filament\Pages\Auth\ResetPassword;
 use App\Filament\Pages\Billing;
-use App\Filament\Pages\CreateTeam;
+use App\Filament\Pages\CreateWorkspace;
 use App\Filament\Pages\Dashboard;
-use App\Filament\Pages\EditTeam;
-use App\Filament\Pages\Team\CustomFields;
+use App\Filament\Pages\EditWorkspace;
+use App\Filament\Pages\Workspace\ActivityLog;
+use App\Filament\Pages\Workspace\CustomFields;
+use App\Filament\Pages\Workspace\Members;
 use App\Filament\Resources\OpportunityResource;
 use App\Filament\Resources\TaskResource;
 use App\Http\Controllers\SyncUserTimezoneController;
@@ -31,12 +34,12 @@ use App\Http\Middleware\CheckScheduledDeletion;
 use App\Http\Middleware\DenySearchIndexing;
 use App\Http\Middleware\EnsureAuthenticationComplete;
 use App\Http\Middleware\EnsureHostedWorkspaceAccess;
-use App\Listeners\SwitchTeam;
+use App\Listeners\SwitchWorkspace;
 use App\Livewire\App\AppDatabaseNotifications;
 use App\Livewire\App\AppSidebar;
 use App\Livewire\App\Profile\ScheduledDeletionInterstitial;
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use App\Support\BrandColors;
 use App\Support\SupportForms;
 use Asmit\ResizedColumn\ResizedColumnPlugin;
@@ -110,11 +113,11 @@ final class AppPanelProvider extends PanelProvider
     public function boot(): void
     {
         /**
-         * Listen and switch team if tenant was changed
+         * Listen and switch workspace if tenant was changed
          */
         Event::listen(
             TenantSet::class,
-            SwitchTeam::class,
+            SwitchWorkspace::class,
         );
 
         Action::configureUsing(fn (Action $action): Action => $action->size(Size::Small)->iconPosition('before'));
@@ -280,6 +283,15 @@ final class AppPanelProvider extends PanelProvider
                     ->name('tasks-board.redirect');
                 Route::get('/{tenant}/opportunities-board', fn (string $tenant) => redirect()->to(OpportunityResource::getUrl('board', ['tenant' => $tenant]), status: 301))
                     ->name('opportunities-board.redirect');
+
+                Route::get('/{tenant}/team/{page?}', fn (string $tenant, ?string $page = null) => redirect()->to(match ($page) {
+                    'members' => Members::getUrl(['tenant' => $tenant]),
+                    'activity' => ActivityLog::getUrl(['tenant' => $tenant]),
+                    'custom-fields' => CustomFields::getUrl(['tenant' => $tenant]),
+                    default => EditWorkspace::getUrl(['tenant' => $tenant]),
+                }, status: 301))
+                    ->where('page', 'members|activity|custom-fields')
+                    ->name('team.redirect');
             })
             ->breadcrumbs(false)
             ->sidebarCollapsibleOnDesktop()
@@ -387,6 +399,18 @@ final class AppPanelProvider extends PanelProvider
                 PanelsRenderHook::TENANT_MENU_AFTER,
                 fn (): View|Factory => view('filament.app.sidebar-toggle')
             )
+            // STYLES_AFTER renders past the panel stylesheet, which is what lets the
+            // `html[data-accent]` ramps outrank the `:root` defaults it emits.
+            ->renderHook(
+                PanelsRenderHook::STYLES_AFTER,
+                fn (): View|Factory => view('filament.app.accent-palettes', [
+                    'accents' => AccentColor::cases(),
+                ])
+            )
+            ->renderHook(
+                PanelsRenderHook::HEAD_START,
+                fn (): View|Factory => view('filament.app.appearance-preference')
+            )
             /**
              * The activation checklist lives here rather than on the dashboard
              * so it follows the user into People or Opportunities instead of
@@ -421,14 +445,14 @@ final class AppPanelProvider extends PanelProvider
             )
             ->renderHook(
                 PanelsRenderHook::PAGE_START,
-                fn (): string => Blade::render('@livewire(\App\Livewire\App\Teams\PendingInvitationsForUser::class)'),
+                fn (): string => Blade::render('@livewire(\App\Livewire\App\Workspaces\PendingInvitationsForUser::class)'),
             )
             ->renderHook(
-                // CreateTeam renders a custom view that PAGE_START never fires on.
+                // CreateWorkspace renders a custom view that PAGE_START never fires on.
                 // Scoping to it keeps this off the guest pages sharing that layout.
                 PanelsRenderHook::SIMPLE_LAYOUT_START,
-                fn (): string => Blade::render('@livewire(\App\Livewire\App\Teams\PendingInvitationsForUser::class)'),
-                scopes: CreateTeam::class,
+                fn (): string => Blade::render('@livewire(\App\Livewire\App\Workspaces\PendingInvitationsForUser::class)'),
+                scopes: CreateWorkspace::class,
             );
 
         // Hidden without a bound tenant: the old panel-root fallback sent these
@@ -456,9 +480,9 @@ final class AppPanelProvider extends PanelProvider
         ]);
 
         $panel
-            ->tenant(Team::class, slugAttribute: 'slug', ownershipRelationship: 'team')
-            ->tenantRegistration(CreateTeam::class)
-            ->tenantProfile(EditTeam::class)
+            ->tenant(Workspace::class, slugAttribute: 'slug', ownershipRelationship: 'workspace')
+            ->tenantRegistration(CreateWorkspace::class)
+            ->tenantProfile(EditWorkspace::class)
             // A negative sort is what puts an item in the group above the
             // workspace switcher, next to Workspace Settings (sort -2), instead
             // of stranding it below the workspace list.

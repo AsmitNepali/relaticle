@@ -138,7 +138,7 @@ abstract class BaseEmailsRelationManager extends RelationManager
                                         $user = $this->authUser();
 
                                         return User::query()
-                                            ->inTeam($user->current_team_id)
+                                            ->inWorkspace($user->current_workspace_id)
                                             ->whereKeyNot($user->getKey())
                                             ->pluck('name', 'id')
                                             ->all();
@@ -157,7 +157,7 @@ abstract class BaseEmailsRelationManager extends RelationManager
                         foreach ($data['shares'] ?? [] as $share) {
                             foreach (Arr::wrap($share['shared_with']) as $sharedWith) {
                                 $sharedWithUser = User::query()
-                                    ->inTeam($owner->current_team_id)
+                                    ->inWorkspace($owner->current_workspace_id)
                                     ->whereKey($sharedWith)
                                     ->first();
 

@@ -16,11 +16,11 @@ use Relaticle\EmailIntegration\Services\MailboxSyncTracker;
 mutates(Dashboard::class, EmailAccountsPage::class, MailboxImportStatus::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
+    $this->workspace = $this->user->currentWorkspace;
     Filament::setCurrentPanel(Filament::getPanel('app'));
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 });
 
 /**
@@ -32,7 +32,7 @@ function importingAccount(array $overrides = []): ConnectedAccount
     $user = test()->user;
 
     return ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $user->currentTeam->getKey(),
+        'workspace_id' => $user->currentWorkspace->getKey(),
         'user_id' => $user->getKey(),
         'sync_cursor' => null,
         'initial_sync_imported' => 643,
@@ -54,10 +54,10 @@ it('shows processed count and a progress bar while history is importing', functi
 });
 
 it('hides a mailbox belonging to another user', function (): void {
-    $other = User::factory()->withTeam()->create();
+    $other = User::factory()->withWorkspace()->create();
 
     ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $other->currentTeam->getKey(),
+        'workspace_id' => $other->currentWorkspace->getKey(),
         'user_id' => $other->getKey(),
         'sync_cursor' => null,
         'initial_sync_imported' => 10,
@@ -91,13 +91,13 @@ it('keeps a completed import visible until dismiss on this instance', function (
 });
 
 it('shows calendar-only sync progress on the home import section', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
     Filament::setCurrentPanel(Filament::getPanel('app'));
-    Filament::setTenant($user->currentTeam);
+    Filament::setTenant($user->currentWorkspace);
 
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $user->currentTeam->getKey(),
+        'workspace_id' => $user->currentWorkspace->getKey(),
         'user_id' => $user->getKey(),
         'sync_cursor' => 'done',
         'calendar_sync_cursor' => 'done',
@@ -169,7 +169,7 @@ it('renders each importing mailbox in the home section', function (): void {
 
 it('renders nothing on home when nothing is importing', function (): void {
     ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => test()->team->getKey(),
+        'workspace_id' => test()->team->getKey(),
         'user_id' => test()->user->getKey(),
         'sync_cursor' => 'done',
         'last_synced_at' => now(),

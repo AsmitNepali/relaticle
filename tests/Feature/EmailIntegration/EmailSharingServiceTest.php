@@ -19,13 +19,13 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 mutates(EmailSharingService::class);
 
 beforeEach(function (): void {
-    $this->owner = User::factory()->withTeam()->create();
+    $this->owner = User::factory()->withWorkspace()->create();
     $this->actingAs($this->owner);
-    $this->team = $this->owner->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->owner->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
     ]));
 
@@ -35,14 +35,14 @@ beforeEach(function (): void {
 function makeSharingEmail(array $overrides = []): Email
 {
     return Email::factory()->create(array_merge([
-        'team_id' => test()->team->id,
+        'workspace_id' => test()->team->id,
         'user_id' => test()->owner->id,
         'connected_account_id' => test()->account->getKey(),
     ], $overrides));
 }
 
 it('creates an EmailShare record', function (): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
     $email = makeSharingEmail();
 
     $share = $this->service->shareEmail($email, $this->owner, $viewer, EmailPrivacyTier::FULL);
@@ -55,7 +55,7 @@ it('creates an EmailShare record', function (): void {
 });
 
 it('updates an existing share when called again for the same viewer', function (): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
     $email = makeSharingEmail();
 
     $this->service->shareEmail($email, $this->owner, $viewer, EmailPrivacyTier::METADATA_ONLY);
@@ -70,7 +70,7 @@ it('updates an existing share when called again for the same viewer', function (
 });
 
 it('removes the share record', function (): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
     $email = makeSharingEmail();
 
     $this->service->shareEmail($email, $this->owner, $viewer, EmailPrivacyTier::FULL);
@@ -83,7 +83,7 @@ it('removes the share record', function (): void {
 });
 
 it('does nothing when no share exists', function (): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
     $email = makeSharingEmail();
 
     // Should not throw
@@ -102,10 +102,10 @@ it('updates the email privacy_tier', function (): void {
 });
 
 it('shares all owner emails linked to a record', function (): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Jane Doe',
         'creator_id' => $this->owner->id,
     ]);
@@ -128,18 +128,18 @@ it('shares all owner emails linked to a record', function (): void {
 });
 
 it('only shares emails owned by the specified owner', function (): void {
-    $otherUser = User::factory()->create(['current_team_id' => $this->team->id]);
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
+    $otherUser = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Contact',
         'creator_id' => $this->owner->id,
     ]);
 
     $ownerEmail = makeSharingEmail(['subject' => 'Owner Email']);
     $otherEmail = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $otherUser->id,
         'connected_account_id' => $this->account->getKey(),
         'subject' => 'Other User Email',
@@ -161,7 +161,7 @@ it('only shares emails owned by the specified owner', function (): void {
 
 it('bulk updates privacy_tier on all owner emails linked to a record', function (): void {
     $company = Company::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Acme Corp',
         'creator_id' => $this->owner->id,
     ]);
@@ -186,7 +186,7 @@ it('bulk updates privacy_tier on all owner emails linked to a record', function 
 
 it('returns 0 when no emails are linked to the record', function (): void {
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Nobody',
         'creator_id' => $this->owner->id,
     ]);
@@ -197,8 +197,8 @@ it('returns 0 when no emails are linked to the record', function (): void {
 });
 
 it('shares with a workspace member who is currently working in another workspace', function (): void {
-    $member = User::factory()->withTeam()->create();
-    $this->team->users()->attach($member, ['role' => 'editor']);
+    $member = User::factory()->withWorkspace()->create();
+    $this->workspace->users()->attach($member, ['role' => 'editor']);
 
     $email = makeSharingEmail();
 
@@ -217,7 +217,7 @@ it('shares with a workspace member who is currently working in another workspace
 });
 
 it('rejects a share target who is not a member of the workspace', function (): void {
-    $outsider = User::factory()->withTeam()->create();
+    $outsider = User::factory()->withWorkspace()->create();
     $email = makeSharingEmail();
 
     expect(fn () => app(UpdateEmailSharingAction::class)->execute(

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Relaticle\EmailIntegration\Enums\EmailBlocklistType;
 use Relaticle\EmailIntegration\Models\ConnectedAccount;
@@ -22,7 +22,7 @@ final class EmailBlocklistFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'team_id' => Team::factory(),
+            'workspace_id' => Workspace::factory(),
             'connected_account_id' => ConnectedAccount::factory(),
             'type' => EmailBlocklistType::EMAIL,
             'value' => fake()->unique()->safeEmail(),

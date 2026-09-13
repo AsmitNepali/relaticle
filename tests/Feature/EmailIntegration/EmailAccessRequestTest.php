@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Filament\Facades\Filament;
 use Illuminate\Support\Facades\Notification;
 use Relaticle\EmailIntegration\Actions\ApproveEmailAccessRequestAction;
@@ -23,21 +23,21 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 mutates(ApproveEmailAccessRequestAction::class, CancelEmailAccessRequestAction::class, DenyEmailAccessRequestAction::class, RequestEmailAccessAction::class, EmailAccessRequestedNotification::class);
 
 beforeEach(function (): void {
-    $this->owner = User::factory()->withTeam()->create();
+    $this->owner = User::factory()->withWorkspace()->create();
     $this->actingAs($this->owner);
-    $this->team = $this->owner->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->owner->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
-    $this->requester = User::factory()->create(['current_team_id' => $this->team->id]);
-    $this->team->users()->attach($this->requester, ['role' => 'editor']);
+    $this->requester = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->users()->attach($this->requester, ['role' => 'editor']);
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
     ]));
 
     $this->email = Email::factory()->private()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
         'connected_account_id' => $this->account->getKey(),
         'subject' => 'Confidential Thread',
@@ -95,7 +95,7 @@ describe('ApproveEmailAccessRequestAction', function (): void {
 
     it('leaves other pending access-request notifications in place', function (): void {
         $otherEmail = Email::factory()->private()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
         ]);
@@ -177,7 +177,7 @@ describe('ApproveEmailAccessRequestAction', function (): void {
             'email_id' => $this->email->getKey(),
         ]);
 
-        $intruder = User::factory()->create(['current_team_id' => $this->team->id]);
+        $intruder = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
         $this->owner->notify(new EmailAccessRequestedNotification($request));
 
@@ -193,9 +193,9 @@ describe('ApproveEmailAccessRequestAction', function (): void {
     });
 
     it('approves when the requester switched workspaces but remains on the email team', function (): void {
-        $otherTeam = Team::factory()->create();
+        $otherTeam = Workspace::factory()->create();
         $otherTeam->users()->attach($this->requester, ['role' => 'editor']);
-        $this->requester->forceFill(['current_team_id' => $otherTeam->getKey()])->save();
+        $this->requester->forceFill(['current_workspace_id' => $otherTeam->getKey()])->save();
 
         $request = EmailAccessRequest::factory()->forTier(EmailPrivacyTier::FULL)->create([
             'requester_id' => $this->requester->id,
@@ -211,7 +211,7 @@ describe('ApproveEmailAccessRequestAction', function (): void {
     });
 
     it('aborts with 403 when the requester left the email team', function (): void {
-        $this->team->users()->detach($this->requester);
+        $this->workspace->users()->detach($this->requester);
 
         $request = EmailAccessRequest::factory()->forTier(EmailPrivacyTier::FULL)->create([
             'requester_id' => $this->requester->id,
@@ -262,7 +262,7 @@ describe('DenyEmailAccessRequestAction', function (): void {
 
     it('leaves other pending access-request notifications in place', function (): void {
         $otherEmail = Email::factory()->private()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
         ]);
@@ -357,7 +357,7 @@ describe('DenyEmailAccessRequestAction', function (): void {
             'email_id' => $this->email->getKey(),
         ]);
 
-        $intruder = User::factory()->create(['current_team_id' => $this->team->id]);
+        $intruder = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
         Notification::fake();
 
@@ -469,9 +469,9 @@ describe('RequestEmailAccessAction', function (): void {
     });
 
     it('aborts with 403 when the requester is not in the email\'s team', function (): void {
-        $outsider = User::factory()->withTeam()->create();
+        $outsider = User::factory()->withWorkspace()->create();
 
-        expect($outsider->current_team_id)->not->toBe($this->team->id);
+        expect($outsider->current_workspace_id)->not->toBe($this->workspace->id);
 
         expect(fn () => app(RequestEmailAccessAction::class)
             ->execute($this->email, $outsider, EmailPrivacyTier::FULL))

@@ -70,13 +70,13 @@ it('rejects google notifications with the wrong verification token', function ()
 });
 
 it('shows calendar-only sync progress on the dashboard', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
     Filament::setCurrentPanel(Filament::getPanel('app'));
-    Filament::setTenant($user->currentTeam);
+    Filament::setTenant($user->currentWorkspace);
 
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $user->currentTeam->getKey(),
+        'workspace_id' => $user->currentWorkspace->getKey(),
         'user_id' => $user->getKey(),
         'sync_cursor' => 'done',
         'calendar_sync_cursor' => 'done',

@@ -10,13 +10,13 @@ use Relaticle\EmailIntegration\Models\EmailSignature;
 use Relaticle\EmailIntegration\Services\EmailTemplateRenderService;
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
@@ -62,9 +62,9 @@ it('expands the signature block into signature html when rendered for sending', 
 });
 
 it('does not expand a signature block referencing another users signature', function (): void {
-    $otherUser = User::factory()->withTeam()->create();
+    $otherUser = User::factory()->withWorkspace()->create();
     $otherAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $otherUser->currentTeam->id,
+        'workspace_id' => $otherUser->currentWorkspace->id,
         'user_id' => $otherUser->id,
     ]));
     $foreignSignature = EmailSignature::withoutEvents(fn () => EmailSignature::factory()->create([
@@ -89,9 +89,9 @@ it('does not expand a signature block referencing another users signature', func
 });
 
 it('does not expand a signature block from another workspace', function (): void {
-    $otherTeam = User::factory()->withTeam()->create()->currentTeam;
+    $otherTeam = User::factory()->withWorkspace()->create()->currentWorkspace;
     $otherAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $otherTeam->id,
+        'workspace_id' => $otherTeam->id,
         'user_id' => $this->user->id,
     ]));
     $foreignSignature = EmailSignature::withoutEvents(fn () => EmailSignature::factory()->create([

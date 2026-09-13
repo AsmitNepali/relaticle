@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Relaticle\EmailIntegration\Filament\Actions;
 
 use App\Features\EmailIntegration;
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Filament\Actions\BulkAction;
 use Illuminate\Database\Eloquent\Collection;
 use Laravel\Pennant\Feature;
@@ -40,7 +40,7 @@ final class MassSendBulkAction extends BulkAction
             ->visible(function (): bool {
                 /** @var User|null $user */
                 $user = auth()->user();
-                /** @var Team|null $team */
+                /** @var Workspace|null $team */
                 $team = filament()->getTenant();
 
                 return Feature::active(EmailIntegration::class)

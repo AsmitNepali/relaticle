@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Models;
 
-use App\Models\Concerns\HasTeam;
+use App\Models\Concerns\HasWorkspace;
 use App\Models\User;
 use Database\Factories\EmailBatchFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -21,7 +21,7 @@ final class EmailBatch extends Model
      */
     use HasFactory;
 
-    use HasTeam, HasUlids;
+    use HasUlids, HasWorkspace;
 
     protected static function newFactory(): EmailBatchFactory
     {
@@ -29,7 +29,7 @@ final class EmailBatch extends Model
     }
 
     protected $fillable = [
-        'team_id',
+        'workspace_id',
         'user_id',
         'connected_account_id',
         'subject',

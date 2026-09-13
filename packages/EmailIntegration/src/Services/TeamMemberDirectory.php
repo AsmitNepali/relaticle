@@ -33,8 +33,8 @@ final class TeamMemberDirectory
 
         User::query()
             ->whereHas(
-                'teams',
-                fn (Builder $query): Builder => $query->where('teams.id', $teamId),
+                'workspaces',
+                fn (Builder $query): Builder => $query->where('workspaces.id', $teamId),
             )
             ->get()
             ->each(function (User $user) use (&$members): void {

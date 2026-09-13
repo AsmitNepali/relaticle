@@ -7,7 +7,7 @@ namespace Relaticle\EmailIntegration\Actions;
 use App\Enums\CreationSource;
 use App\Models\CustomField;
 use App\Models\People;
-use App\Models\Team;
+use App\Models\Workspace;
 use App\Support\Database\AdvisoryLock;
 use Illuminate\Contracts\Database\Query\Builder;
 use Relaticle\CustomFields\Models\CustomField as BaseCustomField;
@@ -30,7 +30,7 @@ final readonly class AutoCreatePersonAction
         string $name,
         string $emailAddress,
         string $teamId,
-        Team $team,
+        Workspace $team,
         ?string $companyId = null,
     ): People {
         $emailField = $this->customFieldByCode($teamId);
@@ -44,7 +44,7 @@ final readonly class AutoCreatePersonAction
 
             $person = People::query()->create([
                 'name' => $name ?: $emailAddress,
-                'team_id' => $teamId,
+                'workspace_id' => $teamId,
                 'company_id' => $companyId,
                 'creation_source' => CreationSource::SYSTEM,
             ]);
@@ -70,7 +70,7 @@ final readonly class AutoCreatePersonAction
         }
 
         return People::query()
-            ->where('team_id', $teamId)
+            ->where('workspace_id', $teamId)
             ->whereHas('customFieldValues', fn (Builder $valueQuery): Builder => $valueQuery
                 ->where('custom_field_id', $emailField->getKey())
                 ->whereJsonContains('json_value', $emailAddress)

@@ -12,16 +12,16 @@ use Relaticle\EmailIntegration\Filament\Pages\BaseRecordEmailsPage;
 mutates(BaseRecordEmailsPage::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
-    $this->team = $this->user->currentTeam;
+    $this->user = User::factory()->withWorkspace()->create();
+    $this->workspace = $this->user->currentWorkspace;
 
     $this->company = Company::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'creator_id' => $this->user->id,
     ]);
 
     $this->actingAs($this->user);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 });
 
 it('walks from the resource index to the record to this page', function (): void {

@@ -110,6 +110,6 @@ final class MailboxDisplayNameDirectory
 
     private function cacheKey(User $viewer): string
     {
-        return $viewer->getKey().':'.$viewer->current_team_id;
+        return $viewer->getKey().':'.$viewer->current_workspace_id;
     }
 }

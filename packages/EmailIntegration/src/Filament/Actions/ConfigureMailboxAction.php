@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Filament\Actions;
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Filament\Actions\Action;
 use Relaticle\EmailIntegration\Filament\Pages\EmailAccountsPage;
 use Relaticle\EmailIntegration\Models\ConnectedAccount;
@@ -37,9 +37,9 @@ final class ConfigureMailboxAction extends Action
                 }
 
                 $team = filament()->getTenant();
-                $team = $team instanceof Team ? $team : $user->currentTeam;
+                $team = $team instanceof Workspace ? $team : $user->currentWorkspace;
 
-                return ! ConnectedAccount::hasConnectedFor($user, $team instanceof Team ? $team : null);
+                return ! ConnectedAccount::hasConnectedFor($user, $team instanceof Workspace ? $team : null);
             });
     }
 }

@@ -16,10 +16,10 @@ mutates(HtmlSanitizerService::class);
 
 function foreignAccount(string $accountId, string $email): ConnectedAccount
 {
-    $otherUser = User::factory()->withTeam()->create();
+    $otherUser = User::factory()->withWorkspace()->create();
 
     return ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::create([
-        'team_id' => $otherUser->currentTeam->id,
+        'workspace_id' => $otherUser->currentWorkspace->id,
         'user_id' => $otherUser->id,
         'provider' => EmailProvider::GMAIL,
         'provider_account_id' => $accountId,
@@ -31,13 +31,13 @@ function foreignAccount(string $accountId, string $email): ConnectedAccount
 }
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'provider' => EmailProvider::GMAIL,
         'provider_account_id' => 'test-account-id',
@@ -72,7 +72,7 @@ it('preselects the connected account when opening the create form', function ():
 it('preselects the default account, not merely the oldest, when opening the create form', function (): void {
     // $this->account is the oldest. Add a newer account and mark it default.
     $newer = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'provider' => EmailProvider::GMAIL,
         'provider_account_id' => 'default-account-id',
@@ -229,10 +229,10 @@ it('deletes the signature and sends success notification', function (): void {
 });
 
 it('does not delete another user\'s signature', function (): void {
-    $otherUser = User::factory()->withTeam()->create();
+    $otherUser = User::factory()->withWorkspace()->create();
 
     $otherAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $otherUser->id,
         'provider' => EmailProvider::GMAIL,
         'provider_account_id' => 'other-account-id',
@@ -266,10 +266,10 @@ it('shows only the authenticated user\'s signatures on mount', function (): void
         'content_html' => '<p>Mine</p>',
     ]);
 
-    $otherUser = User::factory()->withTeam()->create();
+    $otherUser = User::factory()->withWorkspace()->create();
 
     $otherAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $otherUser->id,
         'provider' => EmailProvider::GMAIL,
         'provider_account_id' => 'other-account-2',
@@ -296,10 +296,10 @@ it('shows only the authenticated user\'s signatures on mount', function (): void
 
 it('excludes another user\'s signatures even when in the same team', function (): void {
     $otherUser = User::factory()->create();
-    $this->team->users()->attach($otherUser);
+    $this->workspace->users()->attach($otherUser);
 
     $otherAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $otherUser->id,
         'provider' => EmailProvider::GMAIL,
         'provider_account_id' => 'teammate-account',

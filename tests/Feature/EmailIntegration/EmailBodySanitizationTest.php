@@ -18,29 +18,29 @@ use Relaticle\EmailIntegration\Support\EmailHtmlSanitizer;
 mutates(Email::class, EmailHtmlSanitizer::class);
 
 beforeEach(function (): void {
-    $this->owner = User::factory()->withTeam()->create();
-    $this->team = $this->owner->currentTeam;
+    $this->owner = User::factory()->withWorkspace()->create();
+    $this->workspace = $this->owner->currentWorkspace;
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
     ]));
 
     $this->person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Jane Doe',
         'creator_id' => $this->owner->id,
     ]);
 
     $this->actingAs($this->owner);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 });
 
 function makeEmailWithBody(string $html): Email
 {
     /** @var Email $email */
     $email = Email::factory()->create([
-        'team_id' => test()->team->id,
+        'workspace_id' => test()->team->id,
         'user_id' => test()->owner->id,
         'connected_account_id' => test()->account->getKey(),
         'privacy_tier' => EmailPrivacyTier::FULL,
@@ -60,7 +60,7 @@ function makeEmailWithPlainText(string $text): Email
 {
     /** @var Email $email */
     $email = Email::factory()->create([
-        'team_id' => test()->team->id,
+        'workspace_id' => test()->team->id,
         'user_id' => test()->owner->id,
         'connected_account_id' => test()->account->getKey(),
         'privacy_tier' => EmailPrivacyTier::FULL,

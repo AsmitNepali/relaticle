@@ -380,7 +380,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
 
         $draft = Email::query()
             ->where('user_id', $user->getKey())
-            ->where('team_id', $user->current_team_id)
+            ->where('workspace_id', $user->current_workspace_id)
             ->where('status', EmailStatus::DRAFT)
             ->where('in_reply_to', $original->rfc_message_id)
             ->latest('updated_at')
@@ -430,7 +430,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
 
         $email = Email::query()
             ->with(['participants', 'body', 'shares', 'attachments'])
-            ->forTeam($user->current_team_id)
+            ->forWorkspace($user->current_workspace_id)
             ->withGlobalScope('visible', new VisibleEmailScope($user))
             ->whereKey($emailId)
             ->first();
@@ -601,7 +601,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
 
         $people = People::query()
             ->with('company')
-            ->where('team_id', $this->authUser()->current_team_id)
+            ->where('workspace_id', $this->authUser()->current_workspace_id)
             ->whereKey($personIds)
             ->get();
 
@@ -826,10 +826,10 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
             }
         }
 
-        $teamId = (string) $this->authUser()->current_team_id;
+        $teamId = (string) $this->authUser()->current_workspace_id;
 
         $person = People::query()
-            ->where('team_id', $teamId)
+            ->where('workspace_id', $teamId)
             ->whereKey($personId)
             ->first(['id', 'name']);
 
@@ -853,10 +853,10 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
 
     public function addMassCompanyTeamRecipients(string $companyId): void
     {
-        $teamId = (string) $this->authUser()->current_team_id;
+        $teamId = (string) $this->authUser()->current_workspace_id;
 
         $people = People::query()
-            ->where('team_id', $teamId)
+            ->where('workspace_id', $teamId)
             ->where('company_id', $companyId)
             ->get(['id', 'name']);
 
@@ -904,7 +904,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
             return;
         }
 
-        $teamId = (string) $this->authUser()->current_team_id;
+        $teamId = (string) $this->authUser()->current_workspace_id;
         $existingPersonIds = [];
         $nextRecipients = [];
 
@@ -952,7 +952,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
         }
 
         return People::query()
-            ->where('team_id', $teamId)
+            ->where('workspace_id', $teamId)
             ->whereHas('customFieldValues', fn (Builder $valueQuery): Builder => $valueQuery
                 ->where('custom_field_id', $emailField->getKey())
                 ->whereJsonContains('json_value', $emailAddress))
@@ -991,7 +991,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
             return null;
         }
 
-        $person = $this->personForEmail($email, (string) $this->authUser()->current_team_id);
+        $person = $this->personForEmail($email, (string) $this->authUser()->current_workspace_id);
 
         if (! $person instanceof People) {
             return null;
@@ -1112,7 +1112,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
                 ->hiddenLabel()
                 ->resizableImages()
                 ->fileAttachmentsDisk(EmailAttachment::DISK)
-                ->fileAttachmentsDirectory(fn (): string => EmailAttachment::composeImagesDirectory((string) $this->authUser()->current_team_id))
+                ->fileAttachmentsDirectory(fn (): string => EmailAttachment::composeImagesDirectory((string) $this->authUser()->current_workspace_id))
                 ->fileAttachmentsVisibility('private')
                 ->statePath('bodyHtml')
                 ->mergeTags(EmailTemplateRenderService::MERGE_TAGS)
@@ -1172,9 +1172,9 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
     #[Computed]
     public function recipientOptions(): array
     {
-        $teamId = (string) $this->authUser()->current_team_id;
+        $teamId = (string) $this->authUser()->current_workspace_id;
         $people = People::query()
-            ->where('team_id', $teamId)
+            ->where('workspace_id', $teamId)
             ->orderBy('name')
             ->limit(300)
             ->get(['id', 'name', 'company_id']);
@@ -1218,9 +1218,9 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
             return;
         }
 
-        $teamId = (string) $this->authUser()->current_team_id;
+        $teamId = (string) $this->authUser()->current_workspace_id;
         $people = People::query()
-            ->where('team_id', $teamId)
+            ->where('workspace_id', $teamId)
             ->where('company_id', $companyId)
             ->get(['id']);
 
@@ -1275,7 +1275,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
     private function companyTeamRecipientOptions(string $teamId): array
     {
         $people = People::query()
-            ->where('team_id', $teamId)
+            ->where('workspace_id', $teamId)
             ->whereNotNull('company_id')
             ->orderBy('name')
             ->get(['id', 'name', 'company_id']);
@@ -1312,7 +1312,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
 
         /** @var list<array{type: 'company_team', id: string, label: string, description: string, count: int, emails: list<string>}> */
         return Company::query()
-            ->where('team_id', $teamId)
+            ->where('workspace_id', $teamId)
             ->whereKey(array_keys($companyCounts))
             ->orderBy('name')
             ->get(['id', 'name'])
@@ -1537,7 +1537,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
 
                 $this->redirect(MailboxOAuthWorkspace::redirectUrl(
                     $account->provider->value,
-                    $account->team,
+                    $account->workspace,
                 ));
             });
     }
@@ -1594,7 +1594,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
     private function ownedTemplates(): EloquentBuilder
     {
         return EmailTemplate::query()
-            ->where('team_id', $this->authUser()->current_team_id)
+            ->where('workspace_id', $this->authUser()->current_workspace_id)
             ->where(fn (Builder $query): Builder => $query
                 ->where('is_shared', true)
                 ->orWhere('created_by', $this->authUser()->getKey()));
@@ -1750,7 +1750,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
             ->whereIn('id', array_column($this->savedAttachments, 'id'))
             ->whereHas('email', fn (Builder $query): Builder => $query
                 ->where('user_id', $this->authUser()->getKey())
-                ->where('team_id', $this->authUser()->current_team_id)
+                ->where('workspace_id', $this->authUser()->current_workspace_id)
                 ->where('status', EmailStatus::DRAFT))
             ->get();
 
@@ -1899,7 +1899,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
             ->where('is_inline', true)
             ->whereHas('email', fn (Builder $query): Builder => $query
                 ->where('user_id', $this->authUser()->getKey())
-                ->where('team_id', $this->authUser()->current_team_id)
+                ->where('workspace_id', $this->authUser()->current_workspace_id)
                 ->where('status', EmailStatus::DRAFT))
             ->get();
 
@@ -2054,7 +2054,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
 
         $source = Email::query()
             ->with('connectedAccount')
-            ->where('team_id', $user->current_team_id)
+            ->where('workspace_id', $user->current_workspace_id)
             ->where('rfc_message_id', $email->in_reply_to)
             ->withGlobalScope('visible', new VisibleEmailScope($user))
             ->first();
@@ -2199,7 +2199,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
         $draft = Email::query()
             ->with(['body', 'participants', 'attachments'])
             ->where('user_id', $this->authUser()->getKey())
-            ->where('team_id', $this->authUser()->current_team_id)
+            ->where('workspace_id', $this->authUser()->current_workspace_id)
             ->where('status', EmailStatus::DRAFT)
             ->whereKey($draftId)
             ->first();
@@ -2265,7 +2265,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
 
         $original = Email::query()
             ->with(['body', 'participants', 'from', 'shares'])
-            ->where('team_id', $user->current_team_id)
+            ->where('workspace_id', $user->current_workspace_id)
             ->where('rfc_message_id', $draft->in_reply_to)
             ->withGlobalScope('visible', new VisibleEmailScope($user))
             ->first();
@@ -2345,7 +2345,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
 
         $record = $type::query()
             ->whereKey($id)
-            ->where('team_id', $this->authUser()->current_team_id)
+            ->where('workspace_id', $this->authUser()->current_workspace_id)
             ->first();
 
         if ($record instanceof Company || $record instanceof Opportunity || $record instanceof People) {
@@ -2374,7 +2374,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
     {
         return once(fn (): Collection => ConnectedAccount::query()
             ->where('user_id', $this->authUser()->getKey())
-            ->where('team_id', $this->authUser()->current_team_id)
+            ->where('workspace_id', $this->authUser()->current_workspace_id)
             ->connected()
             ->orderByDesc('is_default')
             ->oldest()

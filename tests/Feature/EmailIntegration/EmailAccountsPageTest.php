@@ -25,13 +25,13 @@ use Relaticle\EmailIntegration\Models\EmailSignature;
 mutates(EmailAccountsPage::class, ConnectedAccount::class, HasConnectedAccountActions::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 });
@@ -46,7 +46,7 @@ it('links reconnect to the mailbox oauth redirect for the account provider', fun
         $component,
         TestAction::make('reconnect')->arguments(['account_id' => $this->account->id]),
         $provider->value,
-        $this->team,
+        $this->workspace,
     );
 
     $component->assertActionDoesNotExist('reAuth');
@@ -76,7 +76,7 @@ it('keeps reconnect available when the mailbox has a sync error', function (): v
         $component,
         TestAction::make('reconnect')->arguments(['account_id' => $this->account->id]),
         EmailProvider::GMAIL->value,
-        $this->team,
+        $this->workspace,
     );
 
     $component->assertActionDoesNotExist('reAuth');
@@ -91,9 +91,9 @@ it('keeps reconnect available when re-authentication is required', function (): 
 });
 
 it('does not expose reconnect for another user\'s account', function (): void {
-    $otherUser = User::factory()->create(['current_team_id' => $this->team->id]);
+    $otherUser = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
     $otherAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $otherUser->id,
     ]));
 
@@ -121,7 +121,7 @@ it('deletes the authenticated user\'s account on disconnect', function (): void 
 it('deletes dependent signatures and refreshes the listing on disconnect', function (): void {
     $signature = EmailSignature::withoutEvents(fn () => EmailSignature::factory()->create([
         'connected_account_id' => $this->account->id,
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
@@ -134,9 +134,9 @@ it('deletes dependent signatures and refreshes the listing on disconnect', funct
 });
 
 it('does not delete another user\'s account on disconnect', function (): void {
-    $otherUser = User::factory()->create(['current_team_id' => $this->team->id]);
+    $otherUser = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
     $otherAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $otherUser->id,
     ]));
 
@@ -150,9 +150,9 @@ it('does not delete another user\'s account on disconnect', function (): void {
 });
 
 it('only loads the authenticated user\'s accounts in the current team on mount', function (): void {
-    $otherUser = User::factory()->create(['current_team_id' => $this->team->id]);
+    $otherUser = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
     $otherAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $otherUser->id,
     ]));
 
@@ -167,7 +167,7 @@ it('only loads the authenticated user\'s accounts in the current team on mount',
 
 it('promotes an account to default and demotes the previous default on setDefault', function (): void {
     $current = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->default()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
@@ -193,7 +193,7 @@ it('does not render set as default in the account menu when the mailbox is alrea
 
 it('hides setDefault for the account that is already default', function (): void {
     $default = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->default()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
@@ -203,9 +203,9 @@ it('hides setDefault for the account that is already default', function (): void
 });
 
 it('does not expose setDefault for another user\'s account', function (): void {
-    $otherUser = User::factory()->create(['current_team_id' => $this->team->id]);
+    $otherUser = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
     $otherAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $otherUser->id,
     ]));
 
@@ -217,7 +217,7 @@ it('does not expose setDefault for another user\'s account', function (): void {
 
 it('promotes the remaining account to default when the default is disconnected', function (): void {
     $default = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->default()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
@@ -230,7 +230,7 @@ it('promotes the remaining account to default when the default is disconnected',
 
 it('lists the default account first', function (): void {
     $default = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->default()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
@@ -257,9 +257,9 @@ it('queues mailbox history import from the account menu', function (): void {
 });
 
 it('does not re-import another user\'s account', function (): void {
-    $otherUser = User::factory()->create(['current_team_id' => $this->team->id]);
+    $otherUser = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
     $otherAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $otherUser->id,
     ]));
 
@@ -302,7 +302,7 @@ it('shows only accounts and templates in the email settings cluster', function (
         ->and(EmailAccessRequestsPage::shouldRegisterNavigation())->toBeFalse()
         ->and(UserEmailPrivacyPage::shouldRegisterNavigation())->toBeFalse();
 
-    $this->get(EmailAccountsPage::getUrl(tenant: $this->team))
+    $this->get(EmailAccountsPage::getUrl(tenant: $this->workspace))
         ->assertSuccessful()
         ->assertSee(__('filament/pages/email-accounts.navigation_label'), false)
         ->assertSee(__('filament/resources/email-template.navigation_label'), false)

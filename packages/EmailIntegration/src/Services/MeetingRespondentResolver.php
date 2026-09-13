@@ -20,7 +20,7 @@ final readonly class MeetingRespondentResolver
     public function resolveAccount(User $user, Meeting $meeting): ?ConnectedAccount
     {
         $accounts = ConnectedAccount::query()
-            ->where('team_id', $meeting->team_id)
+            ->where('workspace_id', $meeting->workspace_id)
             ->where('user_id', $user->getKey())
             ->get();
 
@@ -55,7 +55,7 @@ final readonly class MeetingRespondentResolver
         $emails = collect([strtolower($user->email)]);
 
         ConnectedAccount::query()
-            ->where('team_id', $teamId)
+            ->where('workspace_id', $teamId)
             ->where('user_id', $user->getKey())
             ->pluck('email_address')
             ->each(function (mixed $emailAddress) use ($emails): void {
@@ -74,7 +74,7 @@ final readonly class MeetingRespondentResolver
      */
     public function listedAttendeeEmailsForUser(User $user, Meeting $meeting): array
     {
-        $identityEmails = $this->identityEmailsForUser($user, (string) $meeting->team_id);
+        $identityEmails = $this->identityEmailsForUser($user, (string) $meeting->workspace_id);
 
         if ($identityEmails === []) {
             return [];
@@ -140,7 +140,7 @@ final readonly class MeetingRespondentResolver
             return AttendeeResponseStatus::tryFrom($attendeeStatus) ?? AttendeeResponseStatus::NEEDS_ACTION;
         }
 
-        $identityEmails = $this->identityEmailsForUser($user, (string) $meeting->team_id);
+        $identityEmails = $this->identityEmailsForUser($user, (string) $meeting->workspace_id);
 
         if ($identityEmails === []) {
             return AttendeeResponseStatus::NEEDS_ACTION;

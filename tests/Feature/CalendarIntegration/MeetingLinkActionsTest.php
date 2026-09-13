@@ -15,27 +15,27 @@ use Relaticle\EmailIntegration\Models\Meeting;
 mutates(MeetingsRelationManager::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(
         fn () => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->user->id,
         ])
     );
 });
 
 it('links a meeting to a company via the modal action', function (): void {
-    $person = People::factory()->for($this->team)->create();
+    $person = People::factory()->for($this->workspace)->create();
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
     $meeting->people()->attach($person, ['link_source' => 'manual']);
-    $company = Company::factory()->for($this->team)->create();
+    $company = Company::factory()->for($this->workspace)->create();
 
     livewire(MeetingsRelationManager::class, ['ownerRecord' => $person, 'pageClass' => ViewPeople::class])
         ->callAction(TestAction::make('linkToRecord')->table($meeting), [
@@ -48,9 +48,9 @@ it('links a meeting to a company via the modal action', function (): void {
 });
 
 it('unlinks a meeting from the owner record via the modal action', function (): void {
-    $person = People::factory()->for($this->team)->create();
+    $person = People::factory()->for($this->workspace)->create();
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
     $meeting->people()->attach($person, ['link_source' => 'manual']);

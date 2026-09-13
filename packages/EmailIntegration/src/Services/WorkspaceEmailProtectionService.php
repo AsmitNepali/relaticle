@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Services;
 
-use App\Models\Team;
+use App\Models\Workspace;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Relaticle\EmailIntegration\Models\ConnectedAccount;
@@ -19,7 +19,7 @@ final readonly class WorkspaceEmailProtectionService
      *
      * @return array<int, lowercase-string>
      */
-    public function workspaceDomains(Team $team): array
+    public function workspaceDomains(Workspace $team): array
     {
         $domains = collect();
 
@@ -32,7 +32,7 @@ final readonly class WorkspaceEmailProtectionService
         }
 
         ConnectedAccount::query()
-            ->where('team_id', $team->getKey())
+            ->where('workspace_id', $team->getKey())
             ->pluck('email_address')
             ->each(function (mixed $emailAddress) use ($domains, $team): void {
                 $domain = $this->domainFromEmail((string) $emailAddress);
@@ -53,7 +53,7 @@ final readonly class WorkspaceEmailProtectionService
     /**
      * @return list<array{key: string, address: string, protection: string, source: string, is_system: bool}>
      */
-    public function systemProtectionRows(Team $team): array
+    public function systemProtectionRows(Workspace $team): array
     {
         $rows = [[
             'key' => 'system-members',
@@ -80,7 +80,7 @@ final readonly class WorkspaceEmailProtectionService
      * @param  Collection<int, ProtectedRecipient>  $customEntries
      * @return list<array{key: string, address: string, protection: string, source: string, is_system: bool, entry_id?: string}>
      */
-    public function protectionTableRows(Team $team, Collection $customEntries): array
+    public function protectionTableRows(Workspace $team, Collection $customEntries): array
     {
         $customRows = $customEntries
             ->map(fn (ProtectedRecipient $entry): array => [
@@ -104,14 +104,14 @@ final readonly class WorkspaceEmailProtectionService
      */
     public function protectedDomainsForTeam(string $teamId): array
     {
-        $team = Team::query()->find($teamId);
+        $team = Workspace::query()->find($teamId);
 
         if ($team === null) {
             return [];
         }
 
         $manualDomains = ProtectedRecipient::query()
-            ->where('team_id', $teamId)
+            ->where('workspace_id', $teamId)
             ->where('type', 'domain')
             ->pluck('value')
             ->map(fn (mixed $value): string => strtolower((string) $value))
@@ -123,7 +123,7 @@ final readonly class WorkspaceEmailProtectionService
         ]));
     }
 
-    public function isPublicEmailDomain(string $domain, Team $team): bool
+    public function isPublicEmailDomain(string $domain, Workspace $team): bool
     {
         $normalized = strtolower($domain);
 
@@ -132,7 +132,7 @@ final readonly class WorkspaceEmailProtectionService
         }
 
         return PublicEmailDomain::query()
-            ->where('team_id', $team->getKey())
+            ->where('workspace_id', $team->getKey())
             ->whereRaw('lower(domain) = ?', [$normalized])
             ->exists();
     }

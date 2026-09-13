@@ -168,7 +168,7 @@ final class OutboxTable extends Component implements HasActions, HasSchemas, Has
     {
         return Email::query()
             ->with(['participants'])
-            ->where('team_id', filament()->getTenant()?->getKey())
+            ->where('workspace_id', filament()->getTenant()?->getKey())
             ->where('user_id', auth()->id())
             ->where('direction', EmailDirection::OUTBOUND)
             ->when(

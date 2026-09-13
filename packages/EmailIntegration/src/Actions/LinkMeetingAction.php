@@ -7,7 +7,7 @@ namespace Relaticle\EmailIntegration\Actions;
 use App\Models\Company;
 use App\Models\Opportunity;
 use App\Models\People;
-use App\Models\Team;
+use App\Models\Workspace;
 use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
@@ -35,8 +35,8 @@ final readonly class LinkMeetingAction
     {
         $countsTowardIntelligence = $this->visibility->meetingCountsTowardCommunicationIntelligence($meeting);
         $attendees = $meeting->attendees()->where('is_self', false)->get();
-        $teamId = $meeting->team_id;
-        $team = $meeting->team;
+        $teamId = $meeting->workspace_id;
+        $team = $meeting->workspace;
         $account = $meeting->connectedAccount;
         $skippedDomains = $this->buildSkippedDomains($teamId);
 
@@ -48,7 +48,7 @@ final readonly class LinkMeetingAction
                 $meeting->connected_account_id,
             );
 
-            $person = People::query()->where('team_id', $teamId)
+            $person = People::query()->where('workspace_id', $teamId)
                 ->whereHas('customFieldValues', fn (Builder $valueQuery) => $valueQuery
                     ->whereHas('customField', fn (Builder $fieldQuery) => $fieldQuery->where('type', 'email'))
                     ->whereJsonContains('json_value', $attendee->email_address)
@@ -101,7 +101,7 @@ final readonly class LinkMeetingAction
                     $this->autoAttach($meeting->companies(), $person->company_id);
                 }
 
-                $opportunities = Opportunity::query()->where('team_id', $teamId)
+                $opportunities = Opportunity::query()->where('workspace_id', $teamId)
                     ->where('contact_id', $person->getKey())
                     ->get();
 
@@ -114,7 +114,7 @@ final readonly class LinkMeetingAction
         }
     }
 
-    private function shouldCreatePerson(Team $team): bool
+    private function shouldCreatePerson(Workspace $team): bool
     {
         return match ($team->contact_creation_mode) {
             ContactCreationMode::All, ContactCreationMode::Selective => true,
@@ -151,7 +151,7 @@ final readonly class LinkMeetingAction
         $configDomains = collect((array) config('email-integration.public_domains', []))
             ->map(fn (mixed $d): string => strtolower($this->domainMatcher->host((string) $d)));
 
-        $teamDomains = PublicEmailDomain::query()->where('team_id', $teamId)
+        $teamDomains = PublicEmailDomain::query()->where('workspace_id', $teamId)
             ->pluck('domain')
             ->map(fn (mixed $d): string => strtolower($this->domainMatcher->host((string) $d)));
 

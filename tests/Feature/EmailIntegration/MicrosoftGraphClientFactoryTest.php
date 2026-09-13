@@ -23,12 +23,12 @@ beforeEach(function (): void {
 it('returns a pre-authorized PendingRequest with the access token', function (): void {
     Http::fake();
 
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $account = ConnectedAccount::factory()
         ->azure()
         ->for($user)
         ->create([
-            'team_id' => $user->currentTeam->getKey(),
+            'workspace_id' => $user->currentWorkspace->getKey(),
             'access_token' => 'still-valid-token',
             'refresh_token' => 'refresh-1',
             'token_expires_at' => now()->addHour(),
@@ -51,12 +51,12 @@ it('refreshes and persists a new access token when expired', function (): void {
         'https://graph.microsoft.com/*' => Http::response(['ok' => true]),
     ]);
 
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $account = ConnectedAccount::factory()
         ->azure()
         ->for($user)
         ->create([
-            'team_id' => $user->currentTeam->getKey(),
+            'workspace_id' => $user->currentWorkspace->getKey(),
             'access_token' => 'expired-token',
             'refresh_token' => 'refresh-1',
             'token_expires_at' => now()->subMinute(),
@@ -84,12 +84,12 @@ it('refreshes when token_expires_at is null', function (): void {
         'https://graph.microsoft.com/*' => Http::response(['ok' => true]),
     ]);
 
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $account = ConnectedAccount::factory()
         ->azure()
         ->for($user)
         ->create([
-            'team_id' => $user->currentTeam->getKey(),
+            'workspace_id' => $user->currentWorkspace->getKey(),
             'refresh_token' => 'refresh-1',
             'token_expires_at' => null,
         ]);
@@ -105,12 +105,12 @@ it('refreshes when token_expires_at is null', function (): void {
 it('fails with an auth-error marker instead of POSTing an empty refresh token', function (): void {
     Http::fake();
 
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $account = ConnectedAccount::factory()
         ->azure()
         ->for($user)
         ->create([
-            'team_id' => $user->currentTeam->getKey(),
+            'workspace_id' => $user->currentWorkspace->getKey(),
             'access_token' => 'expired-token',
             'refresh_token' => null,
             'token_expires_at' => now()->subMinute(),
@@ -133,12 +133,12 @@ it('throws RuntimeException when the refresh endpoint returns an error', functio
         ], 400),
     ]);
 
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $account = ConnectedAccount::factory()
         ->azure()
         ->for($user)
         ->create([
-            'team_id' => $user->currentTeam->getKey(),
+            'workspace_id' => $user->currentWorkspace->getKey(),
             'refresh_token' => 'refresh-1',
             'token_expires_at' => now()->subMinute(),
         ]);

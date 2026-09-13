@@ -22,7 +22,7 @@ final readonly class EmailObserver
         $owner = User::query()->find($email->user_id);
 
         if ($owner && ! $email->isDirty('privacy_tier')) {
-            $email->privacy_tier = $this->privacyService->defaultTierForUser($owner, $email->team);
+            $email->privacy_tier = $this->privacyService->defaultTierForUser($owner, $email->workspace);
         } elseif ($email->isDirty('privacy_tier') && $email->creation_source !== EmailCreationSource::SYNC) {
             $email->privacy_tier_customized = true;
         }

@@ -145,9 +145,9 @@ abstract class BaseMeetingsRelationManager extends RelationManager
         $teamId = filament()->getTenant()?->getKey();
 
         return match ($type) {
-            'People' => People::query()->where('team_id', $teamId)->findOrFail($id),
-            'Company' => Company::query()->where('team_id', $teamId)->findOrFail($id),
-            'Opportunity' => Opportunity::query()->where('team_id', $teamId)->findOrFail($id),
+            'People' => People::query()->where('workspace_id', $teamId)->findOrFail($id),
+            'Company' => Company::query()->where('workspace_id', $teamId)->findOrFail($id),
+            'Opportunity' => Opportunity::query()->where('workspace_id', $teamId)->findOrFail($id),
             default => throw new \InvalidArgumentException("Unsupported type: {$type}"),
         };
     }

@@ -15,9 +15,9 @@ use Relaticle\EmailIntegration\Models\ConnectedAccount;
 mutates(CallbackController::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    Filament::setTenant($this->user->currentTeam);
+    Filament::setTenant($this->user->currentWorkspace);
 });
 
 it('redirects with a flashed error when Socialite throws InvalidStateException', function (): void {
@@ -27,7 +27,7 @@ it('redirects with a flashed error when Socialite throws InvalidStateException',
     $response = $this->get(route('email-accounts.callback', ['provider' => 'gmail']));
 
     $response->assertRedirect(EmailAccountsPage::getUrl([
-        'tenant' => $this->user->currentTeam->slug,
+        'tenant' => $this->user->currentWorkspace->slug,
     ], panel: 'app'));
     $response->assertSessionHas('error', 'Your sign-in session expired. Please reconnect the account.');
 });
@@ -51,7 +51,7 @@ it('does not connect a mailbox when the authorizing workspace is missing from th
 
     $this->get(route('email-accounts.callback', ['provider' => 'gmail']))
         ->assertRedirect(EmailAccountsPage::getUrl([
-            'tenant' => $this->user->currentTeam->slug,
+            'tenant' => $this->user->currentWorkspace->slug,
         ], panel: 'app'))
         ->assertSessionHas('error', 'Your sign-in session expired. Please reconnect the account.');
 

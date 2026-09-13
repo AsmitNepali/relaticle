@@ -21,21 +21,21 @@ use Relaticle\EmailIntegration\Notifications\EmailAccessRequestedNotification;
 mutates(EmailAccessNotificationHandler::class, EmailAccessRequestedNotification::class, RequestEmailAccessAction::class, CancelQueuedEmailAction::class);
 
 beforeEach(function (): void {
-    $this->owner = User::factory()->withTeam()->create();
+    $this->owner = User::factory()->withWorkspace()->create();
     $this->actingAs($this->owner);
-    $this->team = $this->owner->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->owner->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
-    $this->requester = User::factory()->create(['current_team_id' => $this->team->id]);
-    $this->team->users()->attach($this->requester, ['role' => 'editor']);
+    $this->requester = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->users()->attach($this->requester, ['role' => 'editor']);
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
     ]));
 
     $this->email = Email::factory()->private()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
         'connected_account_id' => $this->account->getKey(),
         'subject' => 'Q4 pipeline review',
@@ -216,7 +216,7 @@ describe('EmailAccessNotificationHandler', function (): void {
 
         $this->owner->notify(new EmailAccessRequestedNotification($request));
 
-        $intruder = User::factory()->create(['current_team_id' => $this->team->id]);
+        $intruder = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
         $this->actingAs($intruder);
 
         NotificationFacade::fake();
@@ -238,7 +238,7 @@ describe('EmailAccessNotificationHandler', function (): void {
 
         $this->owner->notify(new EmailAccessRequestedNotification($request));
 
-        $intruder = User::factory()->create(['current_team_id' => $this->team->id]);
+        $intruder = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
         $this->actingAs($intruder);
 
         NotificationFacade::fake();
@@ -283,7 +283,7 @@ describe('EmailAccessNotificationHandler', function (): void {
 describe('undo queued send', function (): void {
     it('cancels the sender\'s queued email from the undo toast', function (): void {
         $email = Email::factory()->outbound()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
             'status' => EmailStatus::QUEUED,
@@ -299,13 +299,13 @@ describe('undo queued send', function (): void {
     });
 
     it('does not cancel another user\'s queued email from the undo toast', function (): void {
-        $teammate = User::factory()->create(['current_team_id' => $this->team->id]);
+        $teammate = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
         $theirAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $teammate->id,
         ]));
         $theirs = Email::factory()->outbound()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $teammate->id,
             'connected_account_id' => $theirAccount->getKey(),
             'status' => EmailStatus::QUEUED,
@@ -321,7 +321,7 @@ describe('undo queued send', function (): void {
 
     it('notifies too late when the queued email has already started sending', function (): void {
         $email = Email::factory()->outbound()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
             'status' => EmailStatus::SENDING,

@@ -29,7 +29,7 @@ final class CompanyDomainMatcher
     {
         $host = $this->host($domain);
 
-        return Company::query()->where('team_id', $teamId)
+        return Company::query()->where('workspace_id', $teamId)
             ->whereHas('customFieldValues', fn (Builder $valueQuery) => $valueQuery
                 ->whereHas('customField', fn (Builder $fieldQuery) => $fieldQuery->where('code', 'domains'))
                 ->whereRaw('json_value::text ~* ?', [$this->matchPattern($host)])

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Filament\Pages;
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
@@ -192,7 +192,7 @@ final class EmailInboxPage extends Page
             // queries per row, matching BaseRecordEmailsPage / BaseEmailsRelationManager.
             ->with(['from', 'labels', 'participants', 'shares'])
             ->withReadStateFor($user->getKey())
-            ->forTeam($user->current_team_id)
+            ->forWorkspace($user->current_workspace_id)
             ->withGlobalScope('visible', new VisibleEmailScope($user));
 
         if ($this->accountId !== '' && $this->accountId !== 'all') {
@@ -228,7 +228,7 @@ final class EmailInboxPage extends Page
         /** @var Email|null $email */
         $email = Email::query()
             ->with(['body', 'participants', 'labels', 'attachments', 'from'])
-            ->forTeam($this->authUser()->current_team_id)
+            ->forWorkspace($this->authUser()->current_workspace_id)
             ->withGlobalScope('visible', new VisibleEmailScope($this->authUser()))
             ->whereKey($this->selectedEmailId)
             ->first();
@@ -268,7 +268,7 @@ final class EmailInboxPage extends Page
         $user = $this->authUser();
 
         $query = Email::query()
-            ->forTeam($user->current_team_id)
+            ->forWorkspace($user->current_workspace_id)
             ->withGlobalScope('visible', new VisibleEmailScope($user))
             ->unreadFor($user->getKey());
 
@@ -325,26 +325,26 @@ final class EmailInboxPage extends Page
     public function tabCounts(): array
     {
         $user = $this->authUser();
-        $teamId = $user->current_team_id;
+        $teamId = $user->current_workspace_id;
 
         return [
             EmailPageTab::DRAFTS->value => Email::query()
-                ->forTeam($teamId)
+                ->forWorkspace($teamId)
                 ->where('user_id', $user->getKey())
                 ->where('status', EmailStatus::DRAFT)
                 ->count(),
             EmailPageTab::OUTBOX->value => Email::query()
-                ->forTeam($teamId)
+                ->forWorkspace($teamId)
                 ->where('user_id', $user->getKey())
                 ->where('status', EmailStatus::QUEUED)
                 ->count(),
             EmailPageTab::FAILED->value => Email::query()
-                ->forTeam($teamId)
+                ->forWorkspace($teamId)
                 ->where('user_id', $user->getKey())
                 ->where('status', EmailStatus::FAILED)
                 ->count(),
             EmailPageTab::TEMPLATES->value => EmailTemplate::query()
-                ->where('team_id', $teamId)
+                ->where('workspace_id', $teamId)
                 ->where(fn (Builder $q): Builder => $q
                     ->where('is_shared', true)
                     ->orWhere('created_by', $user->getKey()))
@@ -482,7 +482,7 @@ final class EmailInboxPage extends Page
 
         $team = filament()->getTenant();
 
-        if (! $team instanceof Team) {
+        if (! $team instanceof Workspace) {
             return;
         }
 
@@ -537,7 +537,7 @@ final class EmailInboxPage extends Page
         /** @var list<string> */
         return ConnectedAccount::query()
             ->where('user_id', $user->getKey())
-            ->where('team_id', $user->current_team_id)
+            ->where('workspace_id', $user->current_workspace_id)
             ->pluck('email_address')
             ->map(fn (mixed $address): string => mb_strtolower((string) $address))
             ->filter()
@@ -716,7 +716,7 @@ final class EmailInboxPage extends Page
         /** @var Collection<string, ConnectedAccount> */
         return once(fn (): Collection => ConnectedAccount::query()
             ->where('user_id', $this->authUser()->getKey())
-            ->where('team_id', filament()->getTenant()?->getKey())
+            ->where('workspace_id', filament()->getTenant()?->getKey())
             ->where('status', 'active')
             ->orderByDesc('is_default')
             ->oldest()

@@ -178,7 +178,7 @@ it('chains the next calendar page after the store batch completes', function ():
 
     Meeting::factory()->create([
         'connected_account_id' => $account->getKey(),
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'provider_event_id' => 'evt-A',
     ]);
 
@@ -224,12 +224,12 @@ it('removes meetings absent from the provider when the initial sync requested re
 
     $stale = Meeting::factory()->create([
         'connected_account_id' => $account->getKey(),
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'provider_event_id' => 'deleted-on-provider',
     ]);
     $current = Meeting::factory()->create([
         'connected_account_id' => $account->getKey(),
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'provider_event_id' => 'still-on-provider',
     ]);
 
@@ -258,7 +258,7 @@ it('removes meetings absent from the provider after the last store batch complet
 
     $stale = Meeting::factory()->create([
         'connected_account_id' => $account->getKey(),
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'provider_event_id' => 'deleted-on-provider',
     ]);
 
@@ -293,7 +293,7 @@ it('removes meetings absent from the provider after the last store batch complet
 
     $current = Meeting::factory()->create([
         'connected_account_id' => $account->getKey(),
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'provider_event_id' => 'still-on-provider',
     ]);
 
@@ -313,7 +313,7 @@ it('does not reconcile meetings when the initial sync did not request it', funct
 
     $stored = Meeting::factory()->create([
         'connected_account_id' => $account->getKey(),
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'provider_event_id' => 'locally-stored',
     ]);
 
@@ -429,7 +429,7 @@ it('writes the stored meeting count when the initial calendar backfill finishes'
 
     Meeting::factory()->count(2)->create([
         'connected_account_id' => $account->getKey(),
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
     ]);
 
     $service = Mockery::mock(CalendarServiceInterface::class);
@@ -518,7 +518,7 @@ it('stores the sync token when the batch completion callback runs', function ():
 
     Meeting::factory()->create([
         'connected_account_id' => $account->getKey(),
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'provider_event_id' => 'evt-callback',
     ]);
 

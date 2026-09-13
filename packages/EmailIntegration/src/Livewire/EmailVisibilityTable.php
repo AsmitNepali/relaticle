@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Livewire;
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Filament\Actions\Action;
 use Filament\Actions\Concerns\InteractsWithActions;
 use Filament\Actions\Contracts\HasActions;
@@ -41,12 +41,12 @@ final class EmailVisibilityTable extends Component implements HasActions, HasSch
     public function updateEnforcement(string $entryId, string $enforcement): void
     {
         $entry = TeamEmailBlocklist::query()
-            ->where('team_id', $this->currentTeam()->getKey())
+            ->where('workspace_id', $this->currentWorkspace()->getKey())
             ->whereKey($entryId)
             ->firstOrFail();
 
         resolve(UpdateTeamEmailVisibilityEntryAction::class)->execute(
-            $this->currentTeam(),
+            $this->currentWorkspace(),
             $this->authUser(),
             $entry,
             EmailVisibilityEnforcement::from($enforcement),
@@ -69,7 +69,7 @@ final class EmailVisibilityTable extends Component implements HasActions, HasSch
             ->requiresConfirmation()
             ->action(function (array $arguments): void {
                 TeamEmailBlocklist::query()
-                    ->where('team_id', $this->currentTeam()->getKey())
+                    ->where('workspace_id', $this->currentWorkspace()->getKey())
                     ->whereKey((string) $arguments['entry_id'])
                     ->firstOrFail()
                     ->delete();
@@ -101,7 +101,7 @@ final class EmailVisibilityTable extends Component implements HasActions, HasSch
     private function visibilityRecords(?string $search): SupportCollection
     {
         $rows = resolve(EmailVisibilityService::class)->visibilityTableRows(
-            $this->currentTeam(),
+            $this->currentWorkspace(),
             $this->customEntries(),
         );
 
@@ -127,7 +127,7 @@ final class EmailVisibilityTable extends Component implements HasActions, HasSch
     private function customEntries(): Collection
     {
         return TeamEmailBlocklist::query()
-            ->where('team_id', $this->currentTeam()->getKey())
+            ->where('workspace_id', $this->currentWorkspace()->getKey())
             ->with('creator')
             ->latest()
             ->get();
@@ -141,14 +141,14 @@ final class EmailVisibilityTable extends Component implements HasActions, HasSch
         return $user;
     }
 
-    private function currentTeam(): Team
+    private function currentWorkspace(): Workspace
     {
         $tenant = filament()->getTenant();
 
-        if ($tenant instanceof Team) {
+        if ($tenant instanceof Workspace) {
             return $tenant;
         }
 
-        return $this->authUser()->currentTeam;
+        return $this->authUser()->currentWorkspace;
     }
 }

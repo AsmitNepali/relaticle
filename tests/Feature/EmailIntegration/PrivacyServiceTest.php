@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Filament\Facades\Filament;
 use Relaticle\EmailIntegration\Enums\EmailPrivacyTier;
 use Relaticle\EmailIntegration\Models\ConnectedAccount;
@@ -18,13 +18,13 @@ use Relaticle\EmailIntegration\Services\PrivacyService;
 mutates(PrivacyService::class, PreferredEmailCopyService::class);
 
 beforeEach(function (): void {
-    $this->owner = User::factory()->withTeam()->create();
+    $this->owner = User::factory()->withWorkspace()->create();
     $this->actingAs($this->owner);
-    $this->team = $this->owner->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->owner->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
     ]));
 
@@ -34,7 +34,7 @@ beforeEach(function (): void {
 function makePrivacyEmail(array $overrides = []): Email
 {
     return Email::factory()->create(array_merge([
-        'team_id' => test()->team->id,
+        'workspace_id' => test()->team->id,
         'user_id' => test()->owner->id,
         'connected_account_id' => test()->account->getKey(),
         'is_internal' => false,
@@ -50,10 +50,10 @@ it('effectiveTier returns FULL when viewer is the email owner', function (): voi
 });
 
 it('effectiveTier returns null when all participants are protected by a protected email address', function (): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
     TeamEmailBlocklist::factory()->protected()->email('protected@sensitive.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->owner->id,
     ]);
 
@@ -70,10 +70,10 @@ it('effectiveTier returns null when all participants are protected by a protecte
 });
 
 it('effectiveTier returns a tier when only some participants are protected', function (): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
     TeamEmailBlocklist::factory()->protected()->email('protected@sensitive.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->owner->id,
     ]);
 
@@ -95,10 +95,10 @@ it('effectiveTier returns a tier when only some participants are protected', fun
 });
 
 it('effectiveTier returns null when all participants match a protected domain', function (): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
     TeamEmailBlocklist::factory()->protected()->domain('sensitive.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->owner->id,
     ]);
 
@@ -116,7 +116,7 @@ it('effectiveTier returns null when all participants match a protected domain', 
 
 it('effectiveTier returns null when all participants match an inferred workspace domain', function (): void {
     $this->owner->update(['email' => 'owner@thefireflytech.com']);
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
     $email = makePrivacyEmail(['privacy_tier' => EmailPrivacyTier::FULL]);
 
@@ -131,10 +131,10 @@ it('effectiveTier returns null when all participants match an inferred workspace
 });
 
 it('matches the protected domain by the host after the last @ for malformed addresses', function (): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
     TeamEmailBlocklist::factory()->protected()->domain('sensitive.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->owner->id,
     ]);
 
@@ -151,10 +151,10 @@ it('matches the protected domain by the host after the last @ for malformed addr
 });
 
 it('effectiveTier returns null when any participant matches a blocked entry', function (): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
     TeamEmailBlocklist::factory()->blocked()->email('blocked@sensitive.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->owner->id,
     ]);
 
@@ -176,7 +176,7 @@ it('effectiveTier returns null when any participant matches a blocked entry', fu
 });
 
 it('effectiveTier returns null for internal emails', function (): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
     $email = makePrivacyEmail([
         'privacy_tier' => EmailPrivacyTier::FULL,
@@ -189,7 +189,7 @@ it('effectiveTier returns null for internal emails', function (): void {
 });
 
 it('effectiveTier uses per-email share tier when a share exists for the viewer', function (): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
     $email = makePrivacyEmail(['privacy_tier' => EmailPrivacyTier::METADATA_ONLY]);
 
@@ -205,7 +205,7 @@ it('effectiveTier uses per-email share tier when a share exists for the viewer',
 });
 
 it('effectiveTier returns null when a per-viewer share tier is private', function (): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
     $email = makePrivacyEmail(['privacy_tier' => EmailPrivacyTier::FULL]);
 
@@ -221,7 +221,7 @@ it('effectiveTier returns null when a per-viewer share tier is private', functio
 });
 
 it('effectiveTier falls back to the email privacy_tier when no share exists', function (): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
     $email = makePrivacyEmail(['privacy_tier' => EmailPrivacyTier::SUBJECT]);
 
@@ -231,7 +231,7 @@ it('effectiveTier falls back to the email privacy_tier when no share exists', fu
 });
 
 it('effectiveTier returns null when email privacy_tier is PRIVATE and viewer is not owner', function (): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
     $email = makePrivacyEmail(['privacy_tier' => EmailPrivacyTier::PRIVATE]);
 
@@ -241,7 +241,7 @@ it('effectiveTier returns null when email privacy_tier is PRIVATE and viewer is 
 });
 
 it('effectiveTier returns METADATA_ONLY for a non-owner when email is metadata_only', function (): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
     $email = makePrivacyEmail(['privacy_tier' => EmailPrivacyTier::METADATA_ONLY]);
 
@@ -251,7 +251,7 @@ it('effectiveTier returns METADATA_ONLY for a non-owner when email is metadata_o
 });
 
 it('effectiveTier returns FULL for a non-owner when email is FULL', function (): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
     $email = makePrivacyEmail(['privacy_tier' => EmailPrivacyTier::FULL]);
 
@@ -270,7 +270,7 @@ it('defaultTierForUser returns user-level tier when the user has one set', funct
 
 it('defaultTierForUser falls back to team default when user has no preference', function (): void {
     $this->owner->update(['default_email_sharing_tier' => null]);
-    $this->team->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
+    $this->workspace->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
 
     $tier = $this->service->defaultTierForUser($this->owner->fresh());
 
@@ -279,32 +279,32 @@ it('defaultTierForUser falls back to team default when user has no preference', 
 
 it('defaultTierForUser prefers the user setting over the mailbox workspace default', function (): void {
     $this->owner->update(['default_email_sharing_tier' => EmailPrivacyTier::SUBJECT]);
-    $this->team->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
+    $this->workspace->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
 
-    $tier = $this->service->defaultTierForUser($this->owner->fresh(), $this->team);
+    $tier = $this->service->defaultTierForUser($this->owner->fresh(), $this->workspace);
 
     expect($tier)->toBe(EmailPrivacyTier::SUBJECT);
 });
 
 it('defaultTierForUser uses the mailbox workspace default instead of the owner current team', function (): void {
     $this->owner->update(['default_email_sharing_tier' => null]);
-    $this->team->update(['default_email_sharing_tier' => EmailPrivacyTier::PRIVATE]);
+    $this->workspace->update(['default_email_sharing_tier' => EmailPrivacyTier::PRIVATE]);
 
-    $otherTeam = Team::factory()->create([
+    $otherTeam = Workspace::factory()->create([
         'user_id' => $this->owner->getKey(),
         'default_email_sharing_tier' => EmailPrivacyTier::FULL,
     ]);
-    $this->owner->teams()->attach($otherTeam, ['role' => 'admin']);
-    $this->owner->forceFill(['current_team_id' => $otherTeam->getKey()])->save();
+    $this->owner->workspaces()->attach($otherTeam, ['role' => 'admin']);
+    $this->owner->forceFill(['current_workspace_id' => $otherTeam->getKey()])->save();
 
-    $tier = $this->service->defaultTierForUser($this->owner->fresh(), $this->team);
+    $tier = $this->service->defaultTierForUser($this->owner->fresh(), $this->workspace);
 
     expect($tier)->toBe(EmailPrivacyTier::PRIVATE);
 });
 
 it('tierFromPreference resolves an empty selection to the workspace default', function (): void {
     $this->owner->update(['default_email_sharing_tier' => EmailPrivacyTier::SUBJECT]);
-    $this->team->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
+    $this->workspace->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
 
     $tier = $this->service->tierFromPreference('', $this->owner->fresh());
 
@@ -312,7 +312,7 @@ it('tierFromPreference resolves an empty selection to the workspace default', fu
 });
 
 it('tierFromPreference resolves an explicit selection to that tier', function (): void {
-    $this->team->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
+    $this->workspace->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
 
     $tier = $this->service->tierFromPreference(EmailPrivacyTier::PRIVATE->value, $this->owner->fresh());
 
@@ -321,7 +321,7 @@ it('tierFromPreference resolves an explicit selection to that tier', function ()
 
 it('defaultTierForUser returns metadata-only when the user has no current team', function (): void {
     $orphan = User::factory()->create([
-        'current_team_id' => null,
+        'current_workspace_id' => null,
         'default_email_sharing_tier' => null,
     ]);
 
@@ -332,7 +332,7 @@ it('defaultTierForUser returns metadata-only when the user has no current team',
 
 it('effectiveTier owner access is not blocked by protected recipient', function (): void {
     TeamEmailBlocklist::factory()->protected()->email('protected@sensitive.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->owner->id,
     ]);
 
@@ -350,7 +350,7 @@ it('effectiveTier owner access is not blocked by protected recipient', function 
 
 it('effectiveTier hides a blocked email from its owner', function (): void {
     TeamEmailBlocklist::factory()->blocked()->email('blocked@sensitive.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->owner->id,
     ]);
 
@@ -372,11 +372,11 @@ it('effectiveTier hides a blocked email from its owner', function (): void {
 });
 
 it('effectiveTier returns FULL for a teammate who already synced the same message', function (): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
-    $this->team->users()->attach($viewer, ['role' => 'editor']);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->users()->attach($viewer, ['role' => 'editor']);
 
     $viewerAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $viewer->id,
     ]));
 
@@ -386,7 +386,7 @@ it('effectiveTier returns FULL for a teammate who already synced the same messag
     ]);
 
     Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $viewer->id,
         'connected_account_id' => $viewerAccount->getKey(),
         'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -400,11 +400,11 @@ it('effectiveTier returns FULL for a teammate who already synced the same messag
 });
 
 it('effectiveTier does not treat a different message as a mailbox copy', function (): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
-    $this->team->users()->attach($viewer, ['role' => 'editor']);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->users()->attach($viewer, ['role' => 'editor']);
 
     $viewerAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $viewer->id,
     ]));
 
@@ -414,7 +414,7 @@ it('effectiveTier does not treat a different message as a mailbox copy', functio
     ]);
 
     Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $viewer->id,
         'connected_account_id' => $viewerAccount->getKey(),
         'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -428,14 +428,14 @@ it('effectiveTier does not treat a different message as a mailbox copy', functio
 });
 
 it('effectiveTier uses a share on another copy of the same message', function (): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
-    $this->team->users()->attach($viewer, ['role' => 'editor']);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->users()->attach($viewer, ['role' => 'editor']);
 
-    $otherOwner = User::factory()->create(['current_team_id' => $this->team->id]);
-    $this->team->users()->attach($otherOwner, ['role' => 'editor']);
+    $otherOwner = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->users()->attach($otherOwner, ['role' => 'editor']);
 
     $otherAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $otherOwner->id,
     ]));
 
@@ -445,7 +445,7 @@ it('effectiveTier uses a share on another copy of the same message', function ()
     ]);
 
     $otherCopy = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $otherOwner->id,
         'connected_account_id' => $otherAccount->getKey(),
         'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -455,7 +455,7 @@ it('effectiveTier uses a share on another copy of the same message', function ()
 
     EmailShare::factory()->tier(EmailPrivacyTier::FULL)->create([
         'email_id' => $otherCopy->getKey(),
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'shared_by' => $otherOwner->id,
         'shared_with' => $viewer->id,
     ]);
@@ -468,7 +468,7 @@ it('effectiveTier uses a share on another copy of the same message', function ()
 it('effectiveTier hides a mailbox-blocklisted email from its owner', function (): void {
     EmailBlocklist::factory()->email('spam@badactor.com')->create([
         'user_id' => $this->owner->id,
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->getKey(),
     ]);
 

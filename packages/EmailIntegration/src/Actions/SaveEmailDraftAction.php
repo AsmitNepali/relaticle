@@ -60,7 +60,7 @@ final readonly class SaveEmailDraftAction
     {
         /** @var ConnectedAccount $account */
         $account = ConnectedAccount::query()
-            ->ownedBy($user, $user->currentTeam)
+            ->ownedBy($user, $user->currentWorkspace)
             ->whereKey($data['connected_account_id'])
             ->firstOrFail();
 
@@ -68,7 +68,7 @@ final readonly class SaveEmailDraftAction
             $existing = $draftId !== null
                 ? Email::query()
                     ->where('user_id', $user->getKey())
-                    ->where('team_id', $account->team_id)
+                    ->where('workspace_id', $account->workspace_id)
                     ->where('status', EmailStatus::DRAFT)
                     ->whereKey($draftId)
                     ->first()
@@ -85,7 +85,7 @@ final readonly class SaveEmailDraftAction
             $source = $this->sourceEmail($user, $data['source_email_id'] ?? null);
 
             $attributes = [
-                'team_id' => $account->team_id,
+                'workspace_id' => $account->workspace_id,
                 'user_id' => $user->getKey(),
                 'connected_account_id' => $account->getKey(),
                 'subject' => $data['subject'],
@@ -149,7 +149,7 @@ final readonly class SaveEmailDraftAction
         }
 
         $email = Email::query()
-            ->where('team_id', $user->current_team_id)
+            ->where('workspace_id', $user->current_workspace_id)
             ->whereKey($emailId)
             ->first();
 

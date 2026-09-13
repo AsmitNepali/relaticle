@@ -316,7 +316,7 @@ trait HasEmailReaderActions
         $user = $this->readerUser();
 
         $email = Email::query()
-            ->forTeam($user->current_team_id)
+            ->forWorkspace($user->current_workspace_id)
             ->whereKey($emailId)
             ->first();
 
@@ -387,7 +387,7 @@ trait HasEmailReaderActions
         $user = $this->readerUser();
 
         return User::query()
-            ->inTeam($user->current_team_id)
+            ->inWorkspace($user->current_workspace_id)
             ->whereKeyNot($user->getKey())
             ->orderBy('name')
             ->pluck('name', 'id')

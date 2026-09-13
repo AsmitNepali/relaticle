@@ -1,6 +1,6 @@
 @php
     $rows = resolve(\Relaticle\EmailIntegration\Services\WorkspaceEmailProtectionService::class)
-        ->protectionTableRows($this->currentTeam(), $this->protectedRecipientEntries);
+        ->protectionTableRows($this->currentWorkspace(), $this->protectedRecipientEntries);
     $customRows = collect($rows)->where('is_system', false);
 @endphp
 

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Filament\Facades\Filament;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Relaticle\EmailIntegration\Enums\EmailBlocklistType;
@@ -17,13 +17,13 @@ use Relaticle\EmailIntegration\Models\EmailSignature;
 mutates(EmailAccountSettingsPage::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 });
@@ -33,7 +33,7 @@ it('loads the account form and existing blocklist entries on mount', function ()
 
     EmailBlocklist::factory()->create([
         'user_id' => $this->user->id,
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'type' => EmailBlocklistType::DOMAIN,
         'value' => 'spammy.com',
@@ -112,7 +112,7 @@ it('saves account settings without confirmation when the sharing tier is unchang
 });
 
 it('clears a sharing override when selecting use workspace default even if the effective tier stays equal', function (): void {
-    $this->team->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
+    $this->workspace->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
     $this->user->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
 
     livewire(EmailAccountSettingsPage::class, ['account' => $this->account->id])
@@ -124,19 +124,19 @@ it('clears a sharing override when selecting use workspace default even if the e
 });
 
 it('persists an explicit sharing override when the effective tier matches the workspace default', function (): void {
-    $metadataTeam = Team::factory()->create([
+    $metadataTeam = Workspace::factory()->create([
         'user_id' => $this->user->getKey(),
         'default_email_sharing_tier' => EmailPrivacyTier::METADATA_ONLY,
     ]);
-    $this->user->teams()->attach($metadataTeam, ['role' => 'admin']);
-    $this->team->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
+    $this->user->workspaces()->attach($metadataTeam, ['role' => 'admin']);
+    $this->workspace->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
 
     $metadataAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $metadataTeam->getKey(),
+        'workspace_id' => $metadataTeam->getKey(),
         'user_id' => $this->user->id,
     ]));
     $metadataWorkspaceEmail = Email::factory()->create([
-        'team_id' => $metadataTeam->getKey(),
+        'workspace_id' => $metadataTeam->getKey(),
         'user_id' => $this->user->id,
         'connected_account_id' => $metadataAccount->getKey(),
         'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -175,13 +175,13 @@ it('adds blocklist entries from the blocklist modal', function (): void {
 
 it('does not load another account\'s blocklist on this settings page', function (): void {
     $otherAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
     EmailBlocklist::factory()->create([
         'user_id' => $this->user->id,
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $otherAccount->id,
         'type' => EmailBlocklistType::EMAIL,
         'value' => 'other@example.com',
@@ -202,7 +202,7 @@ it('creates a signature for this account from the signatures tab', function (): 
 
     $this->assertDatabaseHas(EmailSignature::class, [
         'connected_account_id' => $this->account->id,
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'name' => 'Brand new',
         'is_default' => true,
@@ -212,7 +212,7 @@ it('creates a signature for this account from the signatures tab', function (): 
 it('edits and deletes a signature from its card', function (): void {
     $signature = EmailSignature::withoutEvents(fn () => EmailSignature::factory()->create([
         'connected_account_id' => $this->account->id,
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'name' => 'Old name',
         'is_default' => true,
@@ -238,13 +238,13 @@ it('edits and deletes a signature from its card', function (): void {
 
 it('does not touch another account\'s signature', function (): void {
     $otherAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
     $signature = EmailSignature::withoutEvents(fn () => EmailSignature::factory()->create([
         'connected_account_id' => $otherAccount->id,
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
@@ -268,9 +268,9 @@ it('shows syncing percent while mailbox history is importing', function (): void
 });
 
 it('does not open the settings page for another user\'s account', function (): void {
-    $otherUser = User::factory()->create(['current_team_id' => $this->team->id]);
+    $otherUser = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
     $otherAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $otherUser->id,
     ]));
 

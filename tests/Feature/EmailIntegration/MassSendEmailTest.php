@@ -39,13 +39,13 @@ mutates(PersonRecipientFormatter::class);
 mutates(EmailComposer::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'email_address' => 'sender@example.com',
         'display_name' => 'Test Sender',
@@ -68,12 +68,12 @@ function setPersonEmail(People $person, string $emailAddress): void
 {
     $emailsField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', $person->team_id)
+        ->where('tenant_id', $person->workspace_id)
         ->where('entity_type', 'people')
         ->where('code', PeopleField::EMAILS->value)
         ->firstOrFail();
 
-    $person->saveCustomFieldValue($emailsField, [$emailAddress], $person->team);
+    $person->saveCustomFieldValue($emailsField, [$emailAddress], $person->workspace);
 }
 
 it('hides mass send when email integration is disabled', function (): void {
@@ -103,7 +103,7 @@ it('hides mass send when no connected account can send', function (): void {
 
 it('opens the composer from people bulk send with resolved recipients', function (): void {
     $people = collect(range(1, 3))->map(fn (int $i): People => People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => "Person {$i}",
         'creator_id' => $this->user->id,
     ]));
@@ -119,7 +119,7 @@ it('opens the composer from people bulk send with resolved recipients', function
 
 it('creates an EmailBatch and persists one Email row per recipient from the composer', function (): void {
     $people = collect(range(1, 3))->map(fn (int $i): People => People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => "Person {$i}",
         'creator_id' => $this->user->id,
     ]));
@@ -146,9 +146,9 @@ it('creates an EmailBatch and persists one Email row per recipient from the comp
         ->call('send')
         ->assertDispatched('outbox:changed');
 
-    expect(EmailBatch::where('team_id', $this->team->id)->count())->toBe(1);
+    expect(EmailBatch::where('workspace_id', $this->workspace->id)->count())->toBe(1);
 
-    $batch = EmailBatch::where('team_id', $this->team->id)->first();
+    $batch = EmailBatch::where('workspace_id', $this->workspace->id)->first();
     expect($batch->total_recipients)->toBe(3)
         ->and($batch->status->value)->toBe('queued');
 
@@ -158,7 +158,7 @@ it('creates an EmailBatch and persists one Email row per recipient from the comp
 
 it('warns when some selected people have no email but still opens the composer', function (): void {
     $withEmail = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Has Email',
         'creator_id' => $this->user->id,
     ]);
@@ -166,7 +166,7 @@ it('warns when some selected people have no email but still opens the composer',
     setPersonEmail($withEmail, 'has@example.com');
 
     $withoutEmail = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'No Email',
         'creator_id' => $this->user->id,
     ]);
@@ -179,7 +179,7 @@ it('warns when some selected people have no email but still opens the composer',
 
 it('queues a person whose email is only in the custom field with no prior correspondence', function (): void {
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Never Emailed',
         'creator_id' => $this->user->id,
     ]);
@@ -195,7 +195,7 @@ it('queues a person whose email is only in the custom field with no prior corres
         ->set('bodyHtml', '<p>Hi</p>')
         ->call('send');
 
-    $batch = EmailBatch::where('team_id', $this->team->id)->firstOrFail();
+    $batch = EmailBatch::where('workspace_id', $this->workspace->id)->firstOrFail();
     expect($batch->total_recipients)->toBe(1);
 
     $email = Email::where('batch_id', $batch->id)->firstOrFail();
@@ -209,7 +209,7 @@ it('queues a person whose email is only in the custom field with no prior corres
 
 it('shows warning notification when no valid recipients exist', function (): void {
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'No Email',
         'creator_id' => $this->user->id,
     ]);
@@ -223,7 +223,7 @@ it('shows warning notification when no valid recipients exist', function (): voi
 
 it('sends a personalized subject as plain text when no template is saved', function (): void {
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Smith & Sons',
         'creator_id' => $this->user->id,
     ]);
@@ -239,7 +239,7 @@ it('sends a personalized subject as plain text when no template is saved', funct
         ->set('bodyHtml', '<p>Hi {name}</p>')
         ->call('send');
 
-    $batch = EmailBatch::where('team_id', $this->team->id)->firstOrFail();
+    $batch = EmailBatch::where('workspace_id', $this->workspace->id)->firstOrFail();
     $email = Email::where('batch_id', $batch->id)->firstOrFail();
 
     expect($email->subject)->toBe('Hello Smith & Sons');
@@ -248,13 +248,13 @@ it('sends a personalized subject as plain text when no template is saved', funct
 
 it('applies template variables per recipient', function (): void {
     $personA = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Alice',
         'creator_id' => $this->user->id,
     ]);
 
     $personB = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Bob',
         'creator_id' => $this->user->id,
     ]);
@@ -274,7 +274,7 @@ it('applies template variables per recipient', function (): void {
         ->set('bodyHtml', '<p>Hello {name}!</p>')
         ->call('send');
 
-    $batch = EmailBatch::where('team_id', $this->team->id)->firstOrFail();
+    $batch = EmailBatch::where('workspace_id', $this->workspace->id)->firstOrFail();
 
     expect(Email::where('batch_id', $batch->id)->where('subject', 'Hi Alice')->exists())->toBeTrue()
         ->and(Email::where('batch_id', $batch->id)->where('subject', 'Hi Bob')->exists())->toBeTrue();
@@ -282,13 +282,13 @@ it('applies template variables per recipient', function (): void {
 
 it('removes a mass recipient from the sidebar', function (): void {
     $personA = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Alice',
         'creator_id' => $this->user->id,
     ]);
 
     $personB = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Bob',
         'creator_id' => $this->user->id,
     ]);
@@ -310,26 +310,26 @@ it('removes a mass recipient from the sidebar', function (): void {
         ->set('bodyHtml', '<p>Hi</p>')
         ->call('send');
 
-    $batch = EmailBatch::where('team_id', $this->team->id)->firstOrFail();
+    $batch = EmailBatch::where('workspace_id', $this->workspace->id)->firstOrFail();
     expect($batch->total_recipients)->toBe(1);
 });
 
 it('adds all company team members from the mass send sidebar search', function (): void {
     $company = Company::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Acme Corp',
         'creator_id' => $this->user->id,
     ]);
 
     $personA = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Alice',
         'company_id' => $company->id,
         'creator_id' => $this->user->id,
     ]);
 
     $personB = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Bob',
         'company_id' => $company->id,
         'creator_id' => $this->user->id,
@@ -349,27 +349,27 @@ it('adds all company team members from the mass send sidebar search', function (
 
 it('opens the composer for company bulk send with all linked people who have email', function (): void {
     $company = Company::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Acme Corp',
         'creator_id' => $this->user->id,
     ]);
 
     $memberA = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Alice',
         'company_id' => $company->id,
         'creator_id' => $this->user->id,
     ]);
 
     $memberB = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Bob',
         'company_id' => $company->id,
         'creator_id' => $this->user->id,
     ]);
 
     People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'No Email',
         'company_id' => $company->id,
         'creator_id' => $this->user->id,
@@ -386,20 +386,20 @@ it('opens the composer for company bulk send with all linked people who have ema
 
 it('queues one email per company member from the composer', function (): void {
     $company = Company::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Acme Corp',
         'creator_id' => $this->user->id,
     ]);
 
     $memberA = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Alice',
         'company_id' => $company->id,
         'creator_id' => $this->user->id,
     ]);
 
     $memberB = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Bob',
         'company_id' => $company->id,
         'creator_id' => $this->user->id,
@@ -430,13 +430,13 @@ it('queues one email per company member from the composer', function (): void {
         ->set('bodyHtml', '<p>Hi</p>')
         ->call('send');
 
-    $batch = EmailBatch::where('team_id', $this->team->id)->firstOrFail();
+    $batch = EmailBatch::where('workspace_id', $this->workspace->id)->firstOrFail();
     expect($batch->total_recipients)->toBe(2);
 });
 
 it('applies an authorized template through the composer picker', function (): void {
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Recipient',
         'creator_id' => $this->user->id,
     ]);
@@ -444,7 +444,7 @@ it('applies an authorized template through the composer picker', function (): vo
     setPersonEmail($person, 'recipient@example.com');
 
     $template = EmailTemplate::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
         'name' => 'Authorized template',
         'subject' => 'Authorized subject',
@@ -463,7 +463,7 @@ it('applies an authorized template through the composer picker', function (): vo
         ->set('bodyHtml', '<p>Edited body for {name}</p>')
         ->call('send');
 
-    $batch = EmailBatch::where('team_id', $this->team->id)->firstOrFail();
+    $batch = EmailBatch::where('workspace_id', $this->workspace->id)->firstOrFail();
     $email = Email::where('batch_id', $batch->id)->firstOrFail();
 
     expect($email->subject)->toBe('Edited hello Recipient')
@@ -472,13 +472,13 @@ it('applies an authorized template through the composer picker', function (): vo
 
 it('sends one email when mass sending is turned off', function (): void {
     $personA = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Alice',
         'creator_id' => $this->user->id,
     ]);
 
     $personB = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Bob',
         'creator_id' => $this->user->id,
     ]);
@@ -506,7 +506,7 @@ it('sends one email when mass sending is turned off', function (): void {
 
 it('builds mass recipients when mass sending is enabled from normal compose', function (): void {
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Alice',
         'creator_id' => $this->user->id,
     ]);
@@ -523,7 +523,7 @@ it('builds mass recipients when mass sending is enabled from normal compose', fu
 
 it('uses the email address when a person name looks like an empty json array', function (): void {
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => '[""]',
         'creator_id' => $this->user->id,
     ]);
@@ -553,7 +553,7 @@ it('uses the email address when a person name looks like an empty json array', f
 
 it('replaces an open compose session when bulk mass send opens the composer again', function (): void {
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Alice',
         'creator_id' => $this->user->id,
     ]);
@@ -585,13 +585,13 @@ it('expands signatures and resolves merge tags per recipient on mass send', func
     ]));
 
     $personA = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Alice',
         'creator_id' => $this->user->id,
     ]);
 
     $personB = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Bob',
         'creator_id' => $this->user->id,
     ]);
@@ -614,7 +614,7 @@ it('expands signatures and resolves merge tags per recipient on mass send', func
         ->set('bodyHtml', $bodyHtml)
         ->call('send');
 
-    $batch = EmailBatch::where('team_id', $this->team->id)->firstOrFail();
+    $batch = EmailBatch::where('workspace_id', $this->workspace->id)->firstOrFail();
     $emails = Email::query()->where('batch_id', $batch->id)->with('body')->get();
 
     $aliceEmail = $emails->first(fn (Email $email): bool => $email->subject === 'Hi Alice');
@@ -632,7 +632,7 @@ it('expands signatures and resolves merge tags per recipient on mass send', func
 
 it('resolves RichEditor merge tag nodes per recipient on mass send', function (): void {
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Alice',
         'creator_id' => $this->user->id,
     ]);
@@ -648,7 +648,7 @@ it('resolves RichEditor merge tag nodes per recipient on mass send', function ()
         ->set('bodyHtml', '<p>Hello <span data-type="mergeTag" data-id="name">Full name</span></p>')
         ->call('send');
 
-    $batch = EmailBatch::where('team_id', $this->team->id)->firstOrFail();
+    $batch = EmailBatch::where('workspace_id', $this->workspace->id)->firstOrFail();
     $email = Email::where('batch_id', $batch->id)->firstOrFail();
 
     expect($email->subject)->toBe('Hi Alice')
@@ -658,7 +658,7 @@ it('resolves RichEditor merge tag nodes per recipient on mass send', function ()
 
 it('ignores a tampered mass recipient email and sends to the CRM address', function (): void {
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Trusted Person',
         'creator_id' => $this->user->id,
     ]);
@@ -694,19 +694,19 @@ it('ignores a tampered mass recipient email and sends to the CRM address', funct
 
 it('drops recipients removed from To when mass sending is toggled off and back on', function (): void {
     $personA = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Alice',
         'creator_id' => $this->user->id,
     ]);
 
     $personB = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Bob',
         'creator_id' => $this->user->id,
     ]);
 
     $personC = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Carol',
         'creator_id' => $this->user->id,
     ]);
@@ -733,14 +733,14 @@ it('drops recipients removed from To when mass sending is toggled off and back o
         ->set('bodyHtml', '<p>Hi</p>')
         ->call('send');
 
-    $batch = EmailBatch::where('team_id', $this->team->id)->firstOrFail();
+    $batch = EmailBatch::where('workspace_id', $this->workspace->id)->firstOrFail();
 
     expect($batch->total_recipients)->toBe(1);
 });
 
 it('saves a mass send draft when the composer is closed', function (): void {
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Alice',
         'creator_id' => $this->user->id,
     ]);
@@ -772,7 +772,7 @@ it('saves a mass send draft when the composer is closed', function (): void {
 
 it('deletes a reopened mass send draft after a successful send', function (): void {
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Alice',
         'creator_id' => $this->user->id,
     ]);
@@ -799,5 +799,5 @@ it('deletes a reopened mass send draft after a successful send', function (): vo
         ->assertDispatched('outbox:changed');
 
     expect(Email::query()->withTrashed()->whereKey($draft->id)->exists())->toBeFalse()
-        ->and(EmailBatch::where('team_id', $this->team->id)->count())->toBe(1);
+        ->and(EmailBatch::where('workspace_id', $this->workspace->id)->count())->toBe(1);
 });

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Controllers;
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Laravel\Socialite\Socialite;
@@ -15,7 +15,7 @@ use RuntimeException;
 
 final readonly class RedirectController
 {
-    public const string WORKSPACE_SESSION_KEY = 'email_integration.oauth.team_id';
+    public const string WORKSPACE_SESSION_KEY = 'email_integration.oauth.workspace_id';
 
     public function __invoke(Request $request, string $provider): RedirectResponse
     {
@@ -47,7 +47,7 @@ final readonly class RedirectController
     {
         $team = MailboxOAuthWorkspace::forUser($user, $request->query('team'));
 
-        if (! $team instanceof Team) {
+        if (! $team instanceof Workspace) {
             return redirect('/')->with('error', 'Select a team before connecting an account.');
         }
 

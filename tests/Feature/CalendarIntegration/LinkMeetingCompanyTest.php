@@ -18,7 +18,7 @@ mutates(LinkMeetingAction::class);
 it('auto-links a meeting to a company by attendee email domain', function (): void {
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create());
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
     ]);
     MeetingAttendee::factory()->create([
@@ -30,7 +30,7 @@ it('auto-links a meeting to a company by attendee email domain', function (): vo
 
     (app(LinkMeetingAction::class))->execute($meeting->fresh());
 
-    $company = Company::query()->where('team_id', $account->team_id)->first();
+    $company = Company::query()->where('workspace_id', $account->workspace_id)->first();
     expect($company)->not->toBeNull();
     expect($meeting->companies()->count())->toBe(1);
 });
@@ -38,7 +38,7 @@ it('auto-links a meeting to a company by attendee email domain', function (): vo
 it('skips company creation for public domains', function (): void {
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create());
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
     ]);
     MeetingAttendee::factory()->create([
@@ -49,23 +49,23 @@ it('skips company creation for public domains', function (): void {
 
     (app(LinkMeetingAction::class))->execute($meeting->fresh());
 
-    expect(Company::query()->where('team_id', $account->team_id)->count())->toBe(0);
+    expect(Company::query()->where('workspace_id', $account->workspace_id)->count())->toBe(0);
 });
 
 it('does not downgrade an existing manual company link to auto', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
-    $team = $user->currentTeam;
+    $team = $user->currentWorkspace;
     Filament::setTenant($team);
 
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $user->id,
     ]));
     $team->update(['auto_create_companies' => false]);
 
     $domainsField = CustomField::query()
-        ->where('tenant_id', $account->team_id)
+        ->where('tenant_id', $account->workspace_id)
         ->where('entity_type', 'company')
         ->where('code', 'domains')
         ->first();
@@ -75,11 +75,11 @@ it('does not downgrade an existing manual company link to auto', function (): vo
     }
 
     // A company that owns the attendee's domain, already manually linked to the meeting.
-    $company = Company::factory()->create(['team_id' => $account->team_id, 'name' => 'Acme']);
-    $company->saveCustomFieldValue($domainsField, 'https://acme.com', $company->team);
+    $company = Company::factory()->create(['workspace_id' => $account->workspace_id, 'name' => 'Acme']);
+    $company->saveCustomFieldValue($domainsField, 'https://acme.com', $company->workspace);
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
     ]);
     MeetingAttendee::factory()->create([

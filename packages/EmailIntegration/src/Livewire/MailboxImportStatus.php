@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Livewire;
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Locked;
@@ -149,7 +149,7 @@ final class MailboxImportStatus extends Component
         $user = auth()->user();
         $team = filament()->getTenant();
 
-        if (! $user instanceof User || ! $team instanceof Team) {
+        if (! $user instanceof User || ! $team instanceof Workspace) {
             return $this->ownedAccountsCache = new Collection;
         }
 

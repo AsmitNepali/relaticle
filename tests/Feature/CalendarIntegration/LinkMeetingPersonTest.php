@@ -25,22 +25,22 @@ function savePersonEmail(People $person, string $email): void
         ->withoutGlobalScopes()
         ->where('code', 'emails')
         ->where('entity_type', 'people')
-        ->where('tenant_id', $person->team_id)
+        ->where('tenant_id', $person->workspace_id)
         ->first();
 
     if ($field) {
-        $person->saveCustomFieldValue($field, [$email], $person->team);
+        $person->saveCustomFieldValue($field, [$email], $person->workspace);
     }
 }
 
 it('matches an existing person by email custom-field value', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
-    $team = $user->currentTeam;
+    $team = $user->currentWorkspace;
     Filament::setTenant($team);
 
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $user->id,
     ]));
     $team->update(['contact_creation_mode' => ContactCreationMode::None]);
@@ -49,7 +49,7 @@ it('matches an existing person by email custom-field value', function (): void {
     savePersonEmail($person, 'guest@acme.com');
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
     ]);
     MeetingAttendee::factory()->create([
@@ -77,19 +77,19 @@ it('matches an existing person by email custom-field value', function (): void {
 });
 
 it('auto-creates a person when contact_creation_mode=All', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
-    $team = $user->currentTeam;
+    $team = $user->currentWorkspace;
     Filament::setTenant($team);
 
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $user->id,
     ]));
     $team->update(['contact_creation_mode' => ContactCreationMode::All]);
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
     ]);
     MeetingAttendee::factory()->create([
@@ -100,17 +100,17 @@ it('auto-creates a person when contact_creation_mode=All', function (): void {
 
     (app(LinkMeetingAction::class))->execute($meeting->fresh());
 
-    expect(People::query()->where('team_id', $team->id)->count())->toBe(1);
+    expect(People::query()->where('workspace_id', $team->id)->count())->toBe(1);
     expect($meeting->people()->count())->toBe(1);
 });
 
 it('skips person creation when contact_creation_mode=None', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
-    $team = $user->currentTeam;
+    $team = $user->currentWorkspace;
 
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $user->id,
     ]));
     $team->update([
@@ -119,7 +119,7 @@ it('skips person creation when contact_creation_mode=None', function (): void {
     ]);
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
     ]);
     MeetingAttendee::factory()->create([
@@ -130,18 +130,18 @@ it('skips person creation when contact_creation_mode=None', function (): void {
 
     (app(LinkMeetingAction::class))->execute($meeting->fresh());
 
-    expect(People::query()->where('team_id', $team->id)->count())->toBe(0);
-    expect(Company::query()->where('team_id', $team->id)->count())->toBe(0);
+    expect(People::query()->where('workspace_id', $team->id)->count())->toBe(0);
+    expect(Company::query()->where('workspace_id', $team->id)->count())->toBe(0);
 });
 
 it('does not auto-create a company when the person already exists', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
-    $team = $user->currentTeam;
+    $team = $user->currentWorkspace;
     Filament::setTenant($team);
 
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $user->id,
     ]));
     $team->update([
@@ -152,10 +152,10 @@ it('does not auto-create a company when the person already exists', function ():
     $person = People::factory()->for($team)->create();
     savePersonEmail($person, 'known@orphan-corp.com');
 
-    $countBefore = Company::query()->where('team_id', $team->id)->count();
+    $countBefore = Company::query()->where('workspace_id', $team->id)->count();
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
     ]);
     MeetingAttendee::factory()->create([
@@ -166,17 +166,17 @@ it('does not auto-create a company when the person already exists', function ():
 
     (app(LinkMeetingAction::class))->execute($meeting->fresh());
 
-    expect(Company::query()->where('team_id', $team->id)->count())->toBe($countBefore);
+    expect(Company::query()->where('workspace_id', $team->id)->count())->toBe($countBefore);
 });
 
 it('does not auto-create a person or company for an automated attendee', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
-    $team = $user->currentTeam;
+    $team = $user->currentWorkspace;
     Filament::setTenant($team);
 
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $user->id,
     ]));
     $team->update([
@@ -185,7 +185,7 @@ it('does not auto-create a person or company for an automated attendee', functio
     ]);
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
     ]);
     MeetingAttendee::factory()->create([
@@ -196,18 +196,18 @@ it('does not auto-create a person or company for an automated attendee', functio
 
     (app(LinkMeetingAction::class))->execute($meeting->fresh());
 
-    expect(People::query()->where('team_id', $team->id)->count())->toBe(0)
-        ->and(Company::query()->where('team_id', $team->id)->count())->toBe(0);
+    expect(People::query()->where('workspace_id', $team->id)->count())->toBe(0)
+        ->and(Company::query()->where('workspace_id', $team->id)->count())->toBe(0);
 });
 
 it('does not auto-create a company for a www-prefixed public domain', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
-    $team = $user->currentTeam;
+    $team = $user->currentWorkspace;
     Filament::setTenant($team);
 
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $user->id,
     ]));
     $team->update([
@@ -215,10 +215,10 @@ it('does not auto-create a company for a www-prefixed public domain', function (
         'auto_create_companies' => true,
     ]);
 
-    $countBefore = Company::query()->where('team_id', $team->id)->count();
+    $countBefore = Company::query()->where('workspace_id', $team->id)->count();
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
     ]);
     MeetingAttendee::factory()->create([
@@ -229,17 +229,17 @@ it('does not auto-create a company for a www-prefixed public domain', function (
 
     (app(LinkMeetingAction::class))->execute($meeting->fresh());
 
-    expect(Company::query()->where('team_id', $team->id)->count())->toBe($countBefore);
+    expect(Company::query()->where('workspace_id', $team->id)->count())->toBe($countBefore);
 });
 
 it('does not auto-create a company for a www-prefixed configured public domain', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
-    $team = $user->currentTeam;
+    $team = $user->currentWorkspace;
     Filament::setTenant($team);
 
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $user->id,
     ]));
     $team->update([
@@ -252,10 +252,10 @@ it('does not auto-create a company for a www-prefixed configured public domain',
         'www.example.com',
     ]);
 
-    $countBefore = Company::query()->where('team_id', $team->id)->count();
+    $countBefore = Company::query()->where('workspace_id', $team->id)->count();
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
     ]);
     MeetingAttendee::factory()->create([
@@ -267,18 +267,18 @@ it('does not auto-create a company for a www-prefixed configured public domain',
 
     (app(LinkMeetingAction::class))->execute($meeting->fresh());
 
-    expect(Company::query()->where('team_id', $team->id)->count())->toBe($countBefore)
-        ->and(People::query()->where('team_id', $team->id)->where('name', 'Public Domain Attendee')->exists())->toBeTrue();
+    expect(Company::query()->where('workspace_id', $team->id)->count())->toBe($countBefore)
+        ->and(People::query()->where('workspace_id', $team->id)->where('name', 'Public Domain Attendee')->exists())->toBeTrue();
 });
 
 it('does not auto-create a company for a www-prefixed team public domain', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
-    $team = $user->currentTeam;
+    $team = $user->currentWorkspace;
     Filament::setTenant($team);
 
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $user->id,
     ]));
     $team->update([
@@ -287,14 +287,14 @@ it('does not auto-create a company for a www-prefixed team public domain', funct
     ]);
 
     PublicEmailDomain::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'domain' => 'www.example.com',
     ]);
 
-    $countBefore = Company::query()->where('team_id', $team->id)->count();
+    $countBefore = Company::query()->where('workspace_id', $team->id)->count();
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
     ]);
     MeetingAttendee::factory()->create([
@@ -306,18 +306,18 @@ it('does not auto-create a company for a www-prefixed team public domain', funct
 
     (app(LinkMeetingAction::class))->execute($meeting->fresh());
 
-    expect(Company::query()->where('team_id', $team->id)->count())->toBe($countBefore)
-        ->and(People::query()->where('team_id', $team->id)->where('name', 'Team Public Domain Attendee')->exists())->toBeTrue();
+    expect(Company::query()->where('workspace_id', $team->id)->count())->toBe($countBefore)
+        ->and(People::query()->where('workspace_id', $team->id)->where('name', 'Team Public Domain Attendee')->exists())->toBeTrue();
 });
 
 it('does not auto-create a person or company when the connected account is soft-deleted', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
-    $team = $user->currentTeam;
+    $team = $user->currentWorkspace;
     Filament::setTenant($team);
 
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $user->id,
     ]));
     $account->delete();
@@ -328,7 +328,7 @@ it('does not auto-create a person or company when the connected account is soft-
     ]);
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
     ]);
     MeetingAttendee::factory()->create([
@@ -339,38 +339,38 @@ it('does not auto-create a person or company when the connected account is soft-
 
     (app(LinkMeetingAction::class))->execute($meeting->fresh());
 
-    expect(People::query()->where('team_id', $team->id)->count())->toBe(0)
-        ->and(Company::query()->where('team_id', $team->id)->count())->toBe(0);
+    expect(People::query()->where('workspace_id', $team->id)->count())->toBe(0)
+        ->and(Company::query()->where('workspace_id', $team->id)->count())->toBe(0);
 });
 
 it('auto-creates a person on the first meeting in Selective mode', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
-    $team = $user->currentTeam;
+    $team = $user->currentWorkspace;
 
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $user->id,
     ]));
     $team->update(['contact_creation_mode' => ContactCreationMode::Selective]);
 
-    $meeting = Meeting::factory()->create(['team_id' => $account->team_id, 'connected_account_id' => $account->getKey()]);
+    $meeting = Meeting::factory()->create(['workspace_id' => $account->workspace_id, 'connected_account_id' => $account->getKey()]);
     MeetingAttendee::factory()->create([
         'meeting_id' => $meeting->getKey(), 'email_address' => 'new-guest@acme.com', 'is_self' => false,
     ]);
     (app(LinkMeetingAction::class))->execute($meeting->fresh());
 
-    expect(People::query()->where('team_id', $team->id)->count())->toBe(1);
+    expect(People::query()->where('workspace_id', $team->id)->count())->toBe(1);
 });
 
 it('increments meeting_count metrics on matched records', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
-    $team = $user->currentTeam;
+    $team = $user->currentWorkspace;
     Filament::setTenant($team);
 
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $user->id,
     ]));
     $team->update([
@@ -379,7 +379,7 @@ it('increments meeting_count metrics on matched records', function (): void {
     ]);
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
     ]);
     MeetingAttendee::factory()->create([
@@ -390,19 +390,19 @@ it('increments meeting_count metrics on matched records', function (): void {
 
     (app(LinkMeetingAction::class))->execute($meeting->fresh());
 
-    $person = People::query()->where('team_id', $team->id)->first();
+    $person = People::query()->where('workspace_id', $team->id)->first();
     expect($person?->meeting_count)->toBe(1);
     expect(Date::parse($person?->last_meeting_at)->timestamp)->toBe($meeting->starts_at->timestamp);
 });
 
 it('does not double-count metrics when a meeting is re-linked on re-sync', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
-    $team = $user->currentTeam;
+    $team = $user->currentWorkspace;
     Filament::setTenant($team);
 
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $user->id,
     ]));
     $team->update([
@@ -411,7 +411,7 @@ it('does not double-count metrics when a meeting is re-linked on re-sync', funct
     ]);
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
     ]);
     MeetingAttendee::factory()->create([
@@ -424,18 +424,18 @@ it('does not double-count metrics when a meeting is re-linked on re-sync', funct
     (app(LinkMeetingAction::class))->execute($meeting->fresh());
     (app(LinkMeetingAction::class))->execute($meeting->fresh());
 
-    $person = People::query()->where('team_id', $team->id)->first();
+    $person = People::query()->where('workspace_id', $team->id)->first();
     expect($person?->meeting_count)->toBe(1);
 });
 
 it('never regresses last_meeting_at when an older meeting is linked after a newer one', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
-    $team = $user->currentTeam;
+    $team = $user->currentWorkspace;
     Filament::setTenant($team);
 
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $user->id,
     ]));
     $team->update([
@@ -444,7 +444,7 @@ it('never regresses last_meeting_at when an older meeting is linked after a newe
     ]);
 
     $recent = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
         'starts_at' => Date::now()->addDays(3),
         'ends_at' => Date::now()->addDays(3)->addHour(),
@@ -458,7 +458,7 @@ it('never regresses last_meeting_at when an older meeting is linked after a newe
     (app(LinkMeetingAction::class))->execute($recent->fresh());
 
     $older = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
         'starts_at' => Date::now()->subDays(30),
         'ends_at' => Date::now()->subDays(30)->addHour(),
@@ -471,19 +471,19 @@ it('never regresses last_meeting_at when an older meeting is linked after a newe
 
     (app(LinkMeetingAction::class))->execute($older->fresh());
 
-    $person = People::query()->where('team_id', $team->id)->first();
+    $person = People::query()->where('workspace_id', $team->id)->first();
     expect($person?->meeting_count)->toBe(2);
     expect(Date::parse($person?->last_meeting_at)->timestamp)->toBe($recent->starts_at->timestamp);
 });
 
 it('does not auto-create a person for a workspace-blocked attendee', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
-    $team = $user->currentTeam;
+    $team = $user->currentWorkspace;
     Filament::setTenant($team);
 
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $user->id,
     ]));
     $team->update([
@@ -492,12 +492,12 @@ it('does not auto-create a person for a workspace-blocked attendee', function ()
     ]);
 
     TeamEmailBlocklist::factory()->blocked()->email('blocked@acme.com')->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'created_by' => $user->id,
     ]);
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
     ]);
     MeetingAttendee::factory()->create([
@@ -508,6 +508,6 @@ it('does not auto-create a person for a workspace-blocked attendee', function ()
 
     (app(LinkMeetingAction::class))->execute($meeting->fresh());
 
-    expect(People::query()->where('team_id', $team->id)->count())->toBe(0);
-    expect(Company::query()->where('team_id', $team->id)->count())->toBe(0);
+    expect(People::query()->where('workspace_id', $team->id)->count())->toBe(0);
+    expect(Company::query()->where('workspace_id', $team->id)->count())->toBe(0);
 });

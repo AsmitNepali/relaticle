@@ -14,8 +14,8 @@ declare(strict_types=1);
  * Conventions: see CLAUDE.md -> Testing section
  */
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Filament\Actions\Action;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Contracts\Broadcasting\Broadcaster as BroadcasterContract;
@@ -102,21 +102,21 @@ function userChannelAuth(User $user, string $id): bool
     return (bool) $callback($user, $id);
 }
 
-function bindMailboxOAuthWorkspace(User $user, ?Team $team = null): void
+function bindMailboxOAuthWorkspace(User $user, ?Workspace $team = null): void
 {
-    $team ??= $user->currentTeam;
+    $team ??= $user->currentWorkspace;
 
-    throw_unless($team instanceof Team, RuntimeException::class, 'bindMailboxOAuthWorkspace requires a workspace.');
+    throw_unless($team instanceof Workspace, RuntimeException::class, 'bindMailboxOAuthWorkspace requires a workspace.');
 
     session()->put(RedirectController::WORKSPACE_SESSION_KEY, $team->getKey());
 }
 
-function mailboxOAuthRedirectUrl(string $provider, Team $team): string
+function mailboxOAuthRedirectUrl(string $provider, Workspace $team): string
 {
     return MailboxOAuthWorkspace::redirectUrl($provider, $team);
 }
 
-function assertMailboxOAuthRedirectUrl(string $url, string $provider, Team $team): void
+function assertMailboxOAuthRedirectUrl(string $url, string $provider, Workspace $team): void
 {
     expect($url)->toContain("/email-accounts/redirect/{$provider}");
 
@@ -126,7 +126,7 @@ function assertMailboxOAuthRedirectUrl(string $url, string $provider, Team $team
         ->and(Request::create($url)->hasValidSignature())->toBeTrue();
 }
 
-function assertRedirectedToMailboxOAuth(Testable $component, string $provider, Team $team): void
+function assertRedirectedToMailboxOAuth(Testable $component, string $provider, Workspace $team): void
 {
     $component->assertRedirect();
 
@@ -140,7 +140,7 @@ function assertActionHasMailboxOAuthUrl(
     Testable $component,
     string|TestAction|array $action,
     string $provider,
-    Team $team,
+    Workspace $team,
 ): void {
     $component->assertActionExists(
         $action,

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Filament\Concerns;
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
@@ -177,7 +177,7 @@ trait HasEmailComposeActions
 
         $team = filament()->getTenant();
 
-        if (! $team instanceof Team) {
+        if (! $team instanceof Workspace) {
             return;
         }
 
@@ -385,7 +385,7 @@ trait HasEmailComposeActions
     #[Computed]
     public function hasActiveConnectedAccount(): bool
     {
-        /** @var Team|null $team */
+        /** @var Workspace|null $team */
         $team = filament()->getTenant();
 
         return ConnectedAccount::hasConnectedFor($this->getAuthenticatedUser(), $team);
@@ -415,7 +415,7 @@ trait HasEmailComposeActions
 
         /** @var Email|null $email */
         $email = Email::query()
-            ->forTeam($user->current_team_id)
+            ->forWorkspace($user->current_workspace_id)
             ->with(['participants', 'body'])
             ->whereKey($emailId)
             ->first();

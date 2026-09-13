@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Models\Scopes;
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
@@ -48,13 +48,13 @@ final readonly class VisibleMeetingScope implements Scope
     public function apply(Builder $builder, Model $model): void
     {
         $viewerId = $this->viewer->getKey();
-        $teamId = $this->viewer->current_team_id;
+        $teamId = $this->viewer->current_workspace_id;
         $identityEmails = $teamId !== null
             ? resolve(MeetingRespondentResolver::class)->identityEmailsForUser($this->viewer, $teamId)
             : [];
 
         $builder
-            ->where($model->qualifyColumn('team_id'), $teamId)
+            ->where($model->qualifyColumn('workspace_id'), $teamId)
             ->where(function (Builder $visibilityQuery) use ($viewerId, $teamId, $identityEmails): void {
                 $this->excludeMeetingsMatchingMailboxBlocklist($visibilityQuery);
                 $this->excludeMeetingsWithBlockedOrganizerMatchingMailboxBlocklist($visibilityQuery);
@@ -99,7 +99,7 @@ final readonly class VisibleMeetingScope implements Scope
             return;
         }
 
-        $team = Team::query()->find($teamId);
+        $team = Workspace::query()->find($teamId);
 
         if ($team === null) {
             return;
@@ -170,14 +170,14 @@ final readonly class VisibleMeetingScope implements Scope
                     $visibleOrganizer
                         ->whereNotExists(function (BaseBuilder $blockedEmail) use ($teamId): void {
                             $blockedEmail->from('team_email_blocklists')
-                                ->where('team_email_blocklists.team_id', $teamId)
+                                ->where('team_email_blocklists.workspace_id', $teamId)
                                 ->where('team_email_blocklists.enforcement_level', EmailVisibilityEnforcement::Blocked->value)
                                 ->where('team_email_blocklists.type', EmailBlocklistType::EMAIL->value)
                                 ->whereRaw('lower(team_email_blocklists.value) = lower(meetings.organizer_email)');
                         })
                         ->whereNotExists(function (BaseBuilder $blockedDomain) use ($teamId): void {
                             $blockedDomain->from('team_email_blocklists')
-                                ->where('team_email_blocklists.team_id', $teamId)
+                                ->where('team_email_blocklists.workspace_id', $teamId)
                                 ->where('team_email_blocklists.enforcement_level', EmailVisibilityEnforcement::Blocked->value)
                                 ->where('team_email_blocklists.type', EmailBlocklistType::DOMAIN->value)
                                 ->whereRaw("lower(meetings.organizer_email) like '%@' || lower(team_email_blocklists.value)");
@@ -195,13 +195,13 @@ final readonly class VisibleMeetingScope implements Scope
             $attendeeQuery->where(function (Builder $match) use ($teamId): void {
                 $match->whereExists(function (BaseBuilder $blockedEmail) use ($teamId): void {
                     $blockedEmail->from('team_email_blocklists')
-                        ->where('team_email_blocklists.team_id', $teamId)
+                        ->where('team_email_blocklists.workspace_id', $teamId)
                         ->where('team_email_blocklists.enforcement_level', EmailVisibilityEnforcement::Blocked->value)
                         ->where('team_email_blocklists.type', EmailBlocklistType::EMAIL->value)
                         ->whereRaw('lower(team_email_blocklists.value) = lower(meeting_attendees.email_address)');
                 })->orWhereExists(function (BaseBuilder $blockedDomain) use ($teamId): void {
                     $blockedDomain->from('team_email_blocklists')
-                        ->where('team_email_blocklists.team_id', $teamId)
+                        ->where('team_email_blocklists.workspace_id', $teamId)
                         ->where('team_email_blocklists.enforcement_level', EmailVisibilityEnforcement::Blocked->value)
                         ->where('team_email_blocklists.type', EmailBlocklistType::DOMAIN->value)
                         ->whereRaw("lower(meeting_attendees.email_address) like '%@' || lower(team_email_blocklists.value)");
@@ -240,14 +240,14 @@ final readonly class VisibleMeetingScope implements Scope
                         $notProtected
                             ->whereNotExists(function (BaseBuilder $protectedEmail) use ($teamId): void {
                                 $protectedEmail->from('team_email_blocklists')
-                                    ->where('team_email_blocklists.team_id', $teamId)
+                                    ->where('team_email_blocklists.workspace_id', $teamId)
                                     ->where('team_email_blocklists.enforcement_level', EmailVisibilityEnforcement::Protected->value)
                                     ->where('team_email_blocklists.type', EmailBlocklistType::EMAIL->value)
                                     ->whereRaw('lower(team_email_blocklists.value) = lower(meeting_attendees.email_address)');
                             })
                             ->whereNotExists(function (BaseBuilder $protectedDomain) use ($teamId): void {
                                 $protectedDomain->from('team_email_blocklists')
-                                    ->where('team_email_blocklists.team_id', $teamId)
+                                    ->where('team_email_blocklists.workspace_id', $teamId)
                                     ->where('team_email_blocklists.enforcement_level', EmailVisibilityEnforcement::Protected->value)
                                     ->where('team_email_blocklists.type', EmailBlocklistType::DOMAIN->value)
                                     ->whereRaw("lower(meeting_attendees.email_address) like '%@' || lower(team_email_blocklists.value)");

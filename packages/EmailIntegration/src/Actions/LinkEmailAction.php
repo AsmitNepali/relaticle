@@ -7,7 +7,7 @@ namespace Relaticle\EmailIntegration\Actions;
 use App\Models\Company;
 use App\Models\Opportunity;
 use App\Models\People;
-use App\Models\Team;
+use App\Models\Workspace;
 use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
@@ -92,11 +92,11 @@ final readonly class LinkEmailAction
     private function link(Email $email, bool $applyMetricsForPrelinkedRecords): void
     {
         $participants = $email->participants()->with('contact', 'company')->get();
-        $teamId = $email->team_id;
+        $teamId = $email->workspace_id;
         $connectedAccount = $email->connectedAccount;
         $skippedDomains = $this->buildSkippedDomains($teamId);
 
-        $team = $email->team;
+        $team = $email->workspace;
 
         // A single email can resolve to the same company/person/opportunity through
         // multiple participants (e.g. two recipients at the same domain). Metrics
@@ -119,7 +119,7 @@ final readonly class LinkEmailAction
 
             // 1. Resolve the person before deciding whether to create a company.
             // Email values are stored as JSON arrays in json_value (e.g. ["user@example.com"])
-            $person = People::query()->where('team_id', $teamId)
+            $person = People::query()->where('workspace_id', $teamId)
                 ->whereHas('customFieldValues', fn (Builder $valueQuery) => $valueQuery
                     ->whereHas('customField', fn (Builder $fieldQuery) => $fieldQuery->where('type', 'email'))
                     ->whereJsonContains('json_value', $participant->email_address)
@@ -180,7 +180,7 @@ final readonly class LinkEmailAction
                     $this->autoAttach($email->companies(), $person->company_id);
                 }
 
-                $opportunities = Opportunity::query()->where('team_id', $teamId)
+                $opportunities = Opportunity::query()->where('workspace_id', $teamId)
                     ->where('contact_id', $person->getKey())
                     ->get();
 
@@ -211,7 +211,7 @@ final readonly class LinkEmailAction
      * - Selective:  create when any workspace mailbox has sent to this address
      * - None:       never create
      */
-    private function shouldCreatePerson(Team $team, string $emailAddress, Email $email): bool
+    private function shouldCreatePerson(Workspace $team, string $emailAddress, Email $email): bool
     {
         return match ($team->contact_creation_mode) {
             ContactCreationMode::All => true,
@@ -228,7 +228,7 @@ final readonly class LinkEmailAction
      * the outbound message being linked). All creates them for every eligible
      * address.
      */
-    private function shouldCreateCompany(Team $team, string $emailAddress, Email $email): bool
+    private function shouldCreateCompany(Workspace $team, string $emailAddress, Email $email): bool
     {
         return $team->auto_create_companies && $this->shouldCreatePerson($team, $emailAddress, $email);
     }
@@ -238,11 +238,11 @@ final readonly class LinkEmailAction
      * the address. Includes mail stored under disconnected accounts so a reply
      * on an active mailbox still creates the person after account churn.
      */
-    private function hasTeamOutboundHistory(Team $team, string $emailAddress): bool
+    private function hasTeamOutboundHistory(Workspace $team, string $emailAddress): bool
     {
         return Email::query()
             ->withoutGlobalScope(ActiveAccountScope::class)
-            ->where('team_id', $team->getKey())
+            ->where('workspace_id', $team->getKey())
             ->where('direction', EmailDirection::OUTBOUND)
             ->whereHas(
                 'participants',
@@ -261,7 +261,7 @@ final readonly class LinkEmailAction
         $configDomains = collect((array) config('email-integration.public_domains', []))
             ->map(fn (mixed $d): string => strtolower($this->domainMatcher->host((string) $d)));
 
-        $teamDomains = PublicEmailDomain::query()->where('team_id', $teamId)
+        $teamDomains = PublicEmailDomain::query()->where('workspace_id', $teamId)
             ->pluck('domain')
             ->map(fn (mixed $d): string => strtolower($this->domainMatcher->host((string) $d)));
 

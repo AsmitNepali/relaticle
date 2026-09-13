@@ -23,7 +23,7 @@ final readonly class MassSendRecipientResolver
             return new MassSendRecipientResult([], 0);
         }
 
-        $teamId = (string) $people->first()->team_id;
+        $teamId = (string) $people->first()->workspace_id;
         /** @var list<string> $peopleIds */
         $peopleIds = array_values($people
             ->map(fn (People $person): string => (string) $person->getKey())
@@ -72,11 +72,11 @@ final readonly class MassSendRecipientResolver
             return new MassSendRecipientResult([], 0);
         }
 
-        $teamId = (string) $companies->first()->team_id;
+        $teamId = (string) $companies->first()->workspace_id;
         $companyIds = $companies->pluck('id')->all();
 
         $people = People::query()
-            ->where('team_id', $teamId)
+            ->where('workspace_id', $teamId)
             ->whereIn('company_id', $companyIds)
             ->get();
 

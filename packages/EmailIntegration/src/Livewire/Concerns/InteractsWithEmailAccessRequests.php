@@ -83,7 +83,7 @@ trait InteractsWithEmailAccessRequests
     {
         return EmailAccessRequest::query()
             ->where('owner_id', $this->authUser()->getKey())
-            ->whereHas('email', fn (Builder $query): Builder => $query->where('team_id', $this->authUser()->current_team_id))
+            ->whereHas('email', fn (Builder $query): Builder => $query->where('workspace_id', $this->authUser()->current_workspace_id))
             ->where('status', EmailAccessRequestStatus::PENDING)
             ->count();
     }
@@ -95,7 +95,7 @@ trait InteractsWithEmailAccessRequests
 
         return EmailAccessRequest::query()
             ->with(['email.shares', 'requester', 'owner'])
-            ->whereHas('email', fn (Builder $query): Builder => $query->where('team_id', $user->current_team_id))
+            ->whereHas('email', fn (Builder $query): Builder => $query->where('workspace_id', $user->current_workspace_id))
             ->when(
                 $this->tab === 'incoming',
                 fn (Builder $query): Builder => $query->where('owner_id', $user->getKey()),

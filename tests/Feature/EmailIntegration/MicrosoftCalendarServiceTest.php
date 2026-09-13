@@ -28,13 +28,13 @@ beforeEach(function (): void {
 
 function makeAzureCalendarAccount(): ConnectedAccount
 {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
 
     return ConnectedAccount::factory()
         ->azure()
         ->for($user)
         ->create([
-            'team_id' => $user->currentTeam->getKey(),
+            'workspace_id' => $user->currentWorkspace->getKey(),
             'access_token' => 'access',
             'refresh_token' => 'refresh',
             'token_expires_at' => now()->addHour(),

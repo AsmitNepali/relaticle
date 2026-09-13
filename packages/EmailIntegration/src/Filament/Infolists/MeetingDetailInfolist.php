@@ -302,9 +302,9 @@ final class MeetingDetailInfolist
         $teamId = filament()->getTenant()?->getKey();
 
         return match (MeetingLinkedRecordType::tryFromLinkTargetType($type)) {
-            MeetingLinkedRecordType::People => People::query()->where('team_id', $teamId)->pluck('name', 'id')->all(),
-            MeetingLinkedRecordType::Company => Company::query()->where('team_id', $teamId)->pluck('name', 'id')->all(),
-            MeetingLinkedRecordType::Opportunity => Opportunity::query()->where('team_id', $teamId)->pluck('name', 'id')->all(),
+            MeetingLinkedRecordType::People => People::query()->where('workspace_id', $teamId)->pluck('name', 'id')->all(),
+            MeetingLinkedRecordType::Company => Company::query()->where('workspace_id', $teamId)->pluck('name', 'id')->all(),
+            MeetingLinkedRecordType::Opportunity => Opportunity::query()->where('workspace_id', $teamId)->pluck('name', 'id')->all(),
             default => [],
         };
     }
@@ -314,9 +314,9 @@ final class MeetingDetailInfolist
         $teamId = filament()->getTenant()?->getKey();
 
         return match (MeetingLinkedRecordType::fromLinkTargetType($type)) {
-            MeetingLinkedRecordType::People => People::query()->where('team_id', $teamId)->findOrFail($id),
-            MeetingLinkedRecordType::Company => Company::query()->where('team_id', $teamId)->findOrFail($id),
-            MeetingLinkedRecordType::Opportunity => Opportunity::query()->where('team_id', $teamId)->findOrFail($id),
+            MeetingLinkedRecordType::People => People::query()->where('workspace_id', $teamId)->findOrFail($id),
+            MeetingLinkedRecordType::Company => Company::query()->where('workspace_id', $teamId)->findOrFail($id),
+            MeetingLinkedRecordType::Opportunity => Opportunity::query()->where('workspace_id', $teamId)->findOrFail($id),
         };
     }
 }

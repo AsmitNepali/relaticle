@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Models\Concerns\HasTeam;
+use App\Models\Concerns\HasWorkspace;
 use App\Observers\AiSummaryObserver;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 #[ObservedBy(AiSummaryObserver::class)]
 #[Fillable([
-    'team_id',
+    'workspace_id',
     'summarizable_type',
     'summarizable_id',
     'summary',
@@ -30,8 +30,8 @@ final class AiSummary extends Model
     /** @use HasFactory<Factory<self>> */
     use HasFactory;
 
-    use HasTeam;
     use HasUlids;
+    use HasWorkspace;
 
     /**
      * @return array<string, string>

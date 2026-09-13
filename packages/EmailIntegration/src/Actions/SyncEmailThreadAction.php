@@ -47,7 +47,7 @@ final readonly class SyncEmailThreadAction
                 'id' => (string) Str::ulid(),
                 'connected_account_id' => $connectedAccount->getKey(),
                 'thread_id' => $threadId,
-                'team_id' => $connectedAccount->team_id,
+                'workspace_id' => $connectedAccount->workspace_id,
                 'subject' => $emails->first()->subject,
                 'email_count' => $emails->count(),
                 'participant_count' => $participantCount,

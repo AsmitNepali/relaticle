@@ -10,19 +10,19 @@ use Relaticle\EmailIntegration\Models\EmailTemplate;
 mutates(EmailTemplate::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 });
 
 it('bulk delete removes the user\'s own templates', function (): void {
     $mineA = EmailTemplate::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
     ]);
     $mineB = EmailTemplate::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
     ]);
 
@@ -36,15 +36,15 @@ it('bulk delete removes the user\'s own templates', function (): void {
 
 it('bulk delete preserves a shared template created by another user', function (): void {
     $mine = EmailTemplate::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
     ]);
 
     $otherUser = User::factory()->create();
-    $this->team->users()->attach($otherUser);
+    $this->workspace->users()->attach($otherUser);
 
     $theirShared = EmailTemplate::factory()->shared()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $otherUser->id,
     ]);
 

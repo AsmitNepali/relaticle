@@ -153,7 +153,7 @@ it('adopts a pending Microsoft sent row when the canonical Graph id arrives', fu
     ]));
 
     $sent = Email::factory()->outbound()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'user_id' => $account->user_id,
         'connected_account_id' => $account->getKey(),
         'rfc_message_id' => '<local-id@example.com>',

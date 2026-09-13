@@ -49,7 +49,7 @@ final readonly class ConnectAccountAction
                     'user_id' => $data->userId,
                     'provider' => $data->provider,
                     'email_address' => $data->emailAddress,
-                    'team_id' => $data->teamId,
+                    'workspace_id' => $data->teamId,
                 ],
                 $values
             );
@@ -60,7 +60,7 @@ final readonly class ConnectAccountAction
                 if ($account->is_default) {
                     $hasOtherDefault = ConnectedAccount::query()
                         ->where('user_id', $data->userId)
-                        ->where('team_id', $data->teamId)
+                        ->where('workspace_id', $data->teamId)
                         ->where('is_default', true)
                         ->whereKeyNot($account->getKey())
                         ->exists();
@@ -78,7 +78,7 @@ final readonly class ConnectAccountAction
             // so the user is never left without one.
             $hasDefault = ConnectedAccount::query()
                 ->where('user_id', $data->userId)
-                ->where('team_id', $data->teamId)
+                ->where('workspace_id', $data->teamId)
                 ->where('is_default', true)
                 ->whereKeyNot($account->getKey())
                 ->exists();

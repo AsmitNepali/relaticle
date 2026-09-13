@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Models;
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Database\Factories\EmailShareFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -25,7 +25,7 @@ final class EmailShare extends Model
     }
 
     protected $fillable = [
-        'team_id',
+        'workspace_id',
         'email_id',
         'shared_by',
         'shared_with',
@@ -33,11 +33,11 @@ final class EmailShare extends Model
     ];
 
     /**
-     * @return BelongsTo<Team, $this>
+     * @return BelongsTo<Workspace, $this>
      */
-    public function team(): BelongsTo
+    public function workspace(): BelongsTo
     {
-        return $this->belongsTo(Team::class);
+        return $this->belongsTo(Workspace::class);
     }
 
     /**

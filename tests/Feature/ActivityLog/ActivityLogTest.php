@@ -10,16 +10,16 @@ use Filament\Facades\Filament;
 mutates(Activity::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 });
 
 it('logs a created activity with team_id auto-populated', function (): void {
     $company = Company::factory()->create([
         'name' => 'Acme Corp',
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
     ]);
 
     $activity = Activity::query()
@@ -28,14 +28,14 @@ it('logs a created activity with team_id auto-populated', function (): void {
         ->where('event', 'created')
         ->firstOrFail();
 
-    expect($activity->team_id)->toBe($this->team->getKey())
+    expect($activity->workspace_id)->toBe($this->workspace->getKey())
         ->and($activity->causer_id)->toBe($this->user->getKey());
 });
 
 it('logs an updated activity with attribute_changes', function (): void {
     $company = Company::factory()->create([
         'name' => 'Initial',
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
     ]);
     $company->update(['name' => 'Renamed']);
 
@@ -53,7 +53,7 @@ it('logs an updated activity with attribute_changes', function (): void {
 
 it('logs a deleted activity', function (): void {
     $company = Company::factory()->create([
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
     ]);
     $company->delete();
 
@@ -68,7 +68,7 @@ it('logs a deleted activity', function (): void {
 
 it('logs a restored activity', function (): void {
     $company = Company::factory()->create([
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
     ]);
     $company->delete();
     $company->restore();
@@ -83,11 +83,11 @@ it('logs a restored activity', function (): void {
 });
 
 it('scopes activities to the current team', function (): void {
-    $otherUser = User::factory()->withTeam()->create();
-    $otherTeam = $otherUser->currentTeam;
+    $otherUser = User::factory()->withWorkspace()->create();
+    $otherTeam = $otherUser->currentWorkspace;
 
     Company::factory()->create([
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
     ]);
 
     $this->actingAs($otherUser);

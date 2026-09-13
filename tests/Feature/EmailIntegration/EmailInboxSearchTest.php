@@ -15,18 +15,18 @@ use Relaticle\EmailIntegration\Services\EmailSearchService;
 mutates(EmailInboxPage::class, EmailSearchService::class);
 
 it('does not match hidden subject or snippet text when searching metadata-only teammate emails', function (): void {
-    $owner = User::factory()->withTeam()->create();
-    $team = $owner->currentTeam;
-    $viewer = User::factory()->create(['current_team_id' => $team->id]);
+    $owner = User::factory()->withWorkspace()->create();
+    $team = $owner->currentWorkspace;
+    $viewer = User::factory()->create(['current_workspace_id' => $team->id]);
     $team->users()->attach($viewer, ['role' => 'editor']);
 
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $owner->id,
     ]));
 
     $email = Email::factory()->inbound()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $owner->id,
         'connected_account_id' => $account->getKey(),
         'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -64,25 +64,25 @@ it('does not match hidden subject or snippet text when searching metadata-only t
 });
 
 it('does not match hidden subject text when the viewer only has a disconnected synced copy', function (): void {
-    $owner = User::factory()->withTeam()->create();
-    $team = $owner->currentTeam;
-    $viewer = User::factory()->create(['current_team_id' => $team->id]);
+    $owner = User::factory()->withWorkspace()->create();
+    $team = $owner->currentWorkspace;
+    $viewer = User::factory()->create(['current_workspace_id' => $team->id]);
     $team->users()->attach($viewer, ['role' => 'editor']);
 
     $ownerAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $owner->id,
     ]));
 
     $viewerAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $viewer->id,
     ]));
 
     $rfcMessageId = '<test-disconnected-copy@example.com>';
 
     $email = Email::factory()->inbound()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $owner->id,
         'connected_account_id' => $ownerAccount->getKey(),
         'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -94,7 +94,7 @@ it('does not match hidden subject text when the viewer only has a disconnected s
     ]);
 
     Email::factory()->inbound()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $viewer->id,
         'connected_account_id' => $viewerAccount->getKey(),
         'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -127,17 +127,17 @@ it('does not match hidden subject text when the viewer only has a disconnected s
 });
 
 it('still matches subject text on emails the viewer owns', function (): void {
-    $owner = User::factory()->withTeam()->create();
-    $team = $owner->currentTeam;
+    $owner = User::factory()->withWorkspace()->create();
+    $team = $owner->currentWorkspace;
 
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $owner->id,
         'is_default' => true,
     ]));
 
     $email = Email::factory()->inbound()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $owner->id,
         'connected_account_id' => $account->getKey(),
         'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,

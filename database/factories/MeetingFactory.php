@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
-use App\Models\Team;
+use App\Models\Workspace;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Relaticle\EmailIntegration\Enums\AttendeeResponseStatus;
 use Relaticle\EmailIntegration\Enums\CalendarEventStatus;
@@ -22,12 +22,12 @@ final class MeetingFactory extends Factory
     /** @return array<string, mixed> */
     public function definition(): array
     {
-        $team = Team::factory()->create();
+        $team = Workspace::factory()->create();
         $startsAt = fake()->dateTimeBetween('-10 days', '+30 days');
         $endsAt = (clone $startsAt)->modify('+30 minutes');
 
         return [
-            'team_id' => $team->getKey(),
+            'workspace_id' => $team->getKey(),
             'connected_account_id' => ConnectedAccount::factory()->for($team),
             'provider_event_id' => fake()->uuid(),
             'ical_uid' => fake()->uuid().'@google.com',

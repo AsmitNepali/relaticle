@@ -33,26 +33,26 @@ use Tests\Helpers\AllowedComposerRecipient;
 mutates(EmailsRelationManager::class, EmailInboxPage::class, EmailComposer::class, Email::class, HasEmailComposeActions::class, RedirectsToGrantSend::class, ConnectedAccount::class, QueuedSendNotifier::class, SendEmailAction::class, SaveEmailDraftAction::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'email_address' => 'me@example.com',
         'display_name' => 'Me',
     ]));
 
     $this->person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Jane Doe',
         'creator_id' => $this->user->id,
     ]);
 
     $this->inboundEmail = Email::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'subject' => 'Original Subject',
@@ -216,11 +216,11 @@ it('reply_all recipients keep the original sender and drop the user\'s own addre
 });
 
 it('inline composer prefills the original subject only when the viewer may see it', function (EmailPrivacyTier $tier, string $expectedSubject): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
-    $this->team->users()->attach($viewer, ['role' => 'editor']);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->users()->attach($viewer, ['role' => 'editor']);
 
     ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $viewer->id,
         'status' => 'active',
     ]));
@@ -591,11 +591,11 @@ it('does not list original attachments when the viewer cannot read the body', fu
 
     inboundStoredAttachment($this->inboundEmail, 'contract.pdf', 'signed-contract');
 
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
-    $this->team->users()->attach($viewer, ['role' => 'editor']);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->users()->attach($viewer, ['role' => 'editor']);
 
     ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $viewer->id,
         'status' => 'active',
     ]));
@@ -729,7 +729,7 @@ it('includes a newly uploaded file alongside the original attachments on a forwa
 
 it('the docked composer closes when the reader moves to another email', function (): void {
     $other = Email::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'subject' => 'Another Subject',
@@ -859,7 +859,7 @@ it('redirects to oauth when grant permission is confirmed from a record emails p
     $component = livewire(PeopleEmailsPage::class, ['record' => $this->person->getKey()])
         ->callAction('grantSendPermission');
 
-    assertRedirectedToMailboxOAuth($component, 'gmail', $this->account->team);
+    assertRedirectedToMailboxOAuth($component, 'gmail', $this->account->workspace);
 });
 
 it('opens the grant permission empty state when replying from a mailbox that cannot send', function (): void {
@@ -931,7 +931,7 @@ it('redirects to oauth when grant permission is confirmed for a mailbox that nee
     $component = livewire(PeopleEmailsPage::class, ['record' => $this->person->getKey()])
         ->callAction('grantSendPermission');
 
-    assertRedirectedToMailboxOAuth($component, 'gmail', $this->account->team);
+    assertRedirectedToMailboxOAuth($component, 'gmail', $this->account->workspace);
 });
 
 function inboundStoredAttachment(Email $email, string $filename, string $contents, bool $inline = false, ?string $contentId = null): EmailAttachment

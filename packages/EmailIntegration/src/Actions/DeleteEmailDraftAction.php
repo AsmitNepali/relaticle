@@ -48,7 +48,7 @@ final readonly class DeleteEmailDraftAction
     {
         return Email::query()
             ->where('user_id', $user->getKey())
-            ->where('team_id', $user->current_team_id)
+            ->where('workspace_id', $user->current_workspace_id)
             ->where('status', EmailStatus::DRAFT)
             ->whereKey($draftId)
             ->first();

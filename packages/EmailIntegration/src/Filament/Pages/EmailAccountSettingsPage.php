@@ -247,7 +247,7 @@ final class EmailAccountSettingsPage extends Page implements HasSchemas
         /** @var User $user */
         $user = auth()->user();
 
-        $workspaceTier = $user->currentTeam->default_email_sharing_tier ?? EmailPrivacyTier::METADATA_ONLY;
+        $workspaceTier = $user->currentWorkspace->default_email_sharing_tier ?? EmailPrivacyTier::METADATA_ONLY;
 
         return ViewField::make('default_email_sharing_tier')
             ->label($this->labelWithInfo(__('filament/pages/email-account-settings.sharing.label'), __('filament/pages/email-account-settings.sharing.hint')))
@@ -630,7 +630,7 @@ final class EmailAccountSettingsPage extends Page implements HasSchemas
         return EmailSignature::query()
             ->where('connected_account_id', $this->account()->getKey())
             ->where('user_id', $this->account()->user_id)
-            ->where('team_id', $this->account()->team_id);
+            ->where('workspace_id', $this->account()->workspace_id);
     }
 
     /**

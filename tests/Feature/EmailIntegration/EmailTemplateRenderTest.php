@@ -17,28 +17,28 @@ use Relaticle\EmailIntegration\Services\EmailTemplateRenderService;
 mutates(EmailTemplateRenderService::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 });
 
 it('renders {name} and {company} for a People record', function (): void {
     $company = Company::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Acme Corp',
         'creator_id' => $this->user->id,
     ]);
 
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Jane Doe',
         'company_id' => $company->id,
         'creator_id' => $this->user->id,
     ]);
 
     $template = EmailTemplate::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
         'name' => 'Test Template',
         'subject' => 'Hello {name}',
@@ -54,13 +54,13 @@ it('renders {name} and {company} for a People record', function (): void {
 it('HTML-escapes merge values in the body but not the plain-text subject', function (): void {
     // A contact name can be attacker-influenced (auto-created from an inbound email).
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => '<img src=x onerror=alert(1)> & Co',
         'creator_id' => $this->user->id,
     ]);
 
     $template = EmailTemplate::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
         'name' => 'XSS Template',
         'subject' => 'Hello {name}',
@@ -80,7 +80,7 @@ it('HTML-escapes merge values in the body but not the plain-text subject', funct
 
 it('substitutes merge tags in plain text without HTML-escaping', function (): void {
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Smith & Sons',
         'creator_id' => $this->user->id,
     ]);
@@ -92,7 +92,7 @@ it('substitutes merge tags in plain text without HTML-escaping', function (): vo
 
 it('resolves RichEditor merge tag nodes when rendering for send', function (): void {
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Jane Doe',
         'creator_id' => $this->user->id,
     ]);
@@ -107,7 +107,7 @@ it('resolves RichEditor merge tag nodes when rendering for send', function (): v
 
 it('substitutes human-readable merge tag labels in plain text', function (): void {
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Jane Doe',
         'creator_id' => $this->user->id,
     ]);
@@ -124,7 +124,7 @@ it('substitutes human-readable merge tag labels in plain text', function (): voi
 
 it('renders people custom field merge tags for phone number job title and linkedin', function (): void {
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Jane Doe',
         'creator_id' => $this->user->id,
     ]);
@@ -136,16 +136,16 @@ it('renders people custom field merge tags for phone number job title and linked
     ] as [$fieldCode, $value]) {
         $customField = CustomField::query()
             ->withoutGlobalScopes()
-            ->where('tenant_id', $person->team_id)
+            ->where('tenant_id', $person->workspace_id)
             ->where('entity_type', 'people')
             ->where('code', $fieldCode->value)
             ->firstOrFail();
 
-        $person->saveCustomFieldValue($customField, $value, $person->team);
+        $person->saveCustomFieldValue($customField, $value, $person->workspace);
     }
 
     $template = EmailTemplate::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
         'name' => 'People Fields Template',
         'subject' => '{job_title} at {company}',
@@ -160,13 +160,13 @@ it('renders people custom field merge tags for phone number job title and linked
 
 it('renders {name} for a Company record', function (): void {
     $company = Company::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Beta Ltd',
         'creator_id' => $this->user->id,
     ]);
 
     $template = EmailTemplate::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
         'name' => 'Company Template',
         'subject' => 'About {name}',
@@ -182,7 +182,7 @@ it('renders {name} for a Company record', function (): void {
 it('appends the signature below the body via renderWithSignature', function (): void {
     $account = ConnectedAccount::withoutEvents(
         fn () => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->user->id,
         ])
     );
@@ -195,7 +195,7 @@ it('appends the signature below the body via renderWithSignature', function (): 
     );
 
     $template = EmailTemplate::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
         'name' => 'Sig Template',
         'subject' => 'Promo',
@@ -212,7 +212,7 @@ it('appends the signature below the body via renderWithSignature', function (): 
 
 it('returns the plain body when renderWithSignature gets no signature', function (): void {
     $template = EmailTemplate::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
         'name' => 'No Sig Template',
         'subject' => 'Promo',
@@ -226,7 +226,7 @@ it('returns the plain body when renderWithSignature gets no signature', function
 
 it('leaves placeholders unchanged when no record is passed', function (): void {
     $template = EmailTemplate::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
         'name' => 'Generic Template',
         'subject' => 'Hello {name}',
@@ -241,13 +241,13 @@ it('leaves placeholders unchanged when no record is passed', function (): void {
 
 it('renders empty string when People record has no company', function (): void {
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Solo Person',
         'creator_id' => $this->user->id,
     ]);
 
     $template = EmailTemplate::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
         'name' => 'No Company Template',
         'subject' => 'Hi {name}',

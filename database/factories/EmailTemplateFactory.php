@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Relaticle\EmailIntegration\Models\EmailTemplate;
 
@@ -19,7 +19,7 @@ final class EmailTemplateFactory extends Factory
     public function definition(): array
     {
         return [
-            'team_id' => Team::factory(),
+            'workspace_id' => Workspace::factory(),
             'created_by' => User::factory(),
             'name' => fake()->words(3, true),
             'subject' => fake()->sentence(),

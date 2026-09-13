@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Livewire;
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -177,7 +177,7 @@ final class DraftsTable extends Component implements HasActions, HasSchemas, Has
     {
         return Email::query()
             ->with(['participants'])
-            ->where('team_id', $this->currentTeam()?->getKey())
+            ->where('workspace_id', $this->currentWorkspace()?->getKey())
             ->where('user_id', auth()->id())
             ->where('status', EmailStatus::DRAFT);
     }
@@ -190,19 +190,19 @@ final class DraftsTable extends Component implements HasActions, HasSchemas, Has
 
     private function hasMailbox(): bool
     {
-        return ConnectedAccount::hasConnectedFor($this->authUser(), $this->currentTeam());
+        return ConnectedAccount::hasConnectedFor($this->authUser(), $this->currentWorkspace());
     }
 
-    private function currentTeam(): ?Team
+    private function currentWorkspace(): ?Workspace
     {
         $tenant = filament()->getTenant();
 
-        if ($tenant instanceof Team) {
+        if ($tenant instanceof Workspace) {
             return $tenant;
         }
 
-        $team = $this->authUser()->currentTeam;
+        $team = $this->authUser()->currentWorkspace;
 
-        return $team instanceof Team ? $team : null;
+        return $team instanceof Workspace ? $team : null;
     }
 }

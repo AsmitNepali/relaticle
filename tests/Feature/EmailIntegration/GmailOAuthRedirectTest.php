@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Relaticle\EmailIntegration\Controllers\RedirectController;
 use Relaticle\EmailIntegration\Support\MailboxOAuthWorkspace;
 
@@ -16,10 +16,10 @@ beforeEach(function (): void {
 });
 
 it('redirects to Google using the Gmail OAuth client and the email-account callback', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
 
-    $location = (string) $this->get(MailboxOAuthWorkspace::redirectUrl('gmail', $user->currentTeam))
+    $location = (string) $this->get(MailboxOAuthWorkspace::redirectUrl('gmail', $user->currentWorkspace))
         ->headers->get('Location');
     parse_str((string) parse_url($location, PHP_URL_QUERY), $query);
 
@@ -34,14 +34,14 @@ it('redirects to Google using the Gmail OAuth client and the email-account callb
         ->and($query['access_type'] ?? null)->toBe('offline')
         ->and($query['prompt'] ?? null)->toBe('consent');
 
-    expect(session(RedirectController::WORKSPACE_SESSION_KEY))->toBe($user->currentTeam->getKey());
+    expect(session(RedirectController::WORKSPACE_SESSION_KEY))->toBe($user->currentWorkspace->getKey());
 });
 
 it('includes calendar.readonly even when the leftover capability query is sent', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
 
-    $location = (string) $this->get(MailboxOAuthWorkspace::redirectUrl('gmail', $user->currentTeam))
+    $location = (string) $this->get(MailboxOAuthWorkspace::redirectUrl('gmail', $user->currentWorkspace))
         ->headers->get('Location');
     parse_str((string) parse_url($location, PHP_URL_QUERY), $query);
 
@@ -61,22 +61,22 @@ it('does not start Google consent when the user has no workspace', function (): 
 });
 
 it('rejects mailbox oauth redirect urls without a valid signature', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
 
     $this->get(route('email-accounts.redirect', [
         'provider' => 'gmail',
-        'team' => $user->currentTeam->getKey(),
+        'team' => $user->currentWorkspace->getKey(),
     ]))->assertForbidden();
 });
 
 it('binds oauth to the page workspace when another tab switched the active team', function (): void {
-    $user = User::factory()->withTeam()->create();
-    $pageWorkspace = $user->currentTeam;
-    $otherWorkspace = Team::factory()->create(['user_id' => $user->getKey()]);
-    $user->teams()->attach($otherWorkspace, ['role' => 'admin']);
-    $user->forceFill(['current_team_id' => $otherWorkspace->getKey()])->save();
-    $user->unsetRelation('currentTeam');
+    $user = User::factory()->withWorkspace()->create();
+    $pageWorkspace = $user->currentWorkspace;
+    $otherWorkspace = Workspace::factory()->create(['user_id' => $user->getKey()]);
+    $user->workspaces()->attach($otherWorkspace, ['role' => 'admin']);
+    $user->forceFill(['current_workspace_id' => $otherWorkspace->getKey()])->save();
+    $user->unsetRelation('currentWorkspace');
 
     $this->actingAs($user);
 

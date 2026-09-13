@@ -49,13 +49,13 @@ final readonly class SendEmailBatchAction
         // per-recipient People records are this team's own selection from the
         // PeopleResource table, already tenant-scoped by Filament.
         ConnectedAccount::query()
-            ->ownedBy($user, $user->currentTeam)
+            ->ownedBy($user, $user->currentWorkspace)
             ->whereKey($accountId)
             ->firstOrFail();
 
         return DB::transaction(function () use ($user, $recipients, $payload, $accountId): EmailBatch {
             $batch = EmailBatch::query()->create([
-                'team_id' => $user->currentTeam?->getKey(),
+                'workspace_id' => $user->currentWorkspace?->getKey(),
                 'user_id' => $user->getKey(),
                 'connected_account_id' => $accountId,
                 'subject' => $payload['subject'],

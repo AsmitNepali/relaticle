@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\CreationSource;
-use App\Models\Concerns\BelongsToTeamCreator;
+use App\Models\Concerns\BelongsToWorkspaceCreator;
 use App\Models\Concerns\HasActivityTimeline;
 use App\Models\Concerns\HasCreator;
 use App\Models\Concerns\HasNotes;
-use App\Models\Concerns\HasTeam;
+use App\Models\Concerns\HasWorkspace;
 use App\Observers\OpportunityObserver;
 use Carbon\CarbonImmutable;
 use Database\Factories\OpportunityFactory;
@@ -52,7 +52,7 @@ use Spatie\EloquentSortable\SortableTrait;
 ])]
 final class Opportunity extends Model implements HasCustomFields, HasTimeline
 {
-    use BelongsToTeamCreator;
+    use BelongsToWorkspaceCreator;
     use HasActivityTimeline;
     use HasCreator;
     use HasEmails;
@@ -62,8 +62,8 @@ final class Opportunity extends Model implements HasCustomFields, HasTimeline
 
     use HasMeetings;
     use HasNotes;
-    use HasTeam;
     use HasUlids;
+    use HasWorkspace;
     use LogsActivity;
     use SoftDeletes;
     use SortableTrait;
@@ -122,7 +122,7 @@ final class Opportunity extends Model implements HasCustomFields, HasTimeline
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->logExcept([
-                'id', 'team_id', 'creator_id', 'creation_source', 'custom_fields',
+                'id', 'workspace_id', 'creator_id', 'creation_source', 'custom_fields',
                 'created_at', 'updated_at', 'deleted_at', 'order_column',
                 'last_email_at', 'last_interaction_at', 'email_count', 'inbound_email_count',
                 'outbound_email_count', 'meeting_count', 'last_meeting_at',

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Controllers;
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -90,7 +90,7 @@ final readonly class CallbackController
 
         $team = $this->consumeBoundWorkspace($request, $user);
 
-        if (! $team instanceof Team) {
+        if (! $team instanceof Workspace) {
             return $this->redirectWithError($user, 'Your sign-in session expired. Please reconnect the account.');
         }
 
@@ -118,19 +118,19 @@ final readonly class CallbackController
         ]))->with('success', 'Account connected successfully.');
     }
 
-    private function boundWorkspace(Request $request, User $user): ?Team
+    private function boundWorkspace(Request $request, User $user): ?Workspace
     {
         return MailboxOAuthWorkspace::forUser($user, $request->session()->get(RedirectController::WORKSPACE_SESSION_KEY));
     }
 
-    private function consumeBoundWorkspace(Request $request, User $user): ?Team
+    private function consumeBoundWorkspace(Request $request, User $user): ?Workspace
     {
         return MailboxOAuthWorkspace::forUser($user, $request->session()->pull(RedirectController::WORKSPACE_SESSION_KEY));
     }
 
-    private function redirectWithError(User $user, string $message, ?Team $team = null): RedirectResponse
+    private function redirectWithError(User $user, string $message, ?Workspace $team = null): RedirectResponse
     {
-        $team ??= $user->currentTeam;
+        $team ??= $user->currentWorkspace;
 
         if ($team === null) {
             return redirect('/')->with('error', $message);

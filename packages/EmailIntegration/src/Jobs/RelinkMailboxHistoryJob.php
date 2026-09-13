@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Jobs;
 
-use App\Models\Team;
+use App\Models\Workspace;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -41,9 +41,9 @@ final class RelinkMailboxHistoryJob implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        $team = $account->team()->first();
+        $team = $account->workspace()->first();
         $previousTenantId = TenantContextService::getCurrentTenantId();
-        TenantContextService::setTenantId($account->team_id);
+        TenantContextService::setTenantId($account->workspace_id);
 
         try {
             Email::query()
@@ -53,7 +53,7 @@ final class RelinkMailboxHistoryJob implements ShouldBeUnique, ShouldQueue
                 ->each(function (Email $email) use ($linkEmail, $account, $team): void {
                     $email->setRelation('connectedAccount', $account);
 
-                    if ($team instanceof Team) {
+                    if ($team instanceof Workspace) {
                         $email->setRelation('team', $team);
                     }
 
@@ -66,7 +66,7 @@ final class RelinkMailboxHistoryJob implements ShouldBeUnique, ShouldQueue
                 ->each(function (Meeting $meeting) use ($linkMeeting, $account, $team): void {
                     $meeting->setRelation('connectedAccount', $account);
 
-                    if ($team instanceof Team) {
+                    if ($team instanceof Workspace) {
                         $meeting->setRelation('team', $team);
                     }
 

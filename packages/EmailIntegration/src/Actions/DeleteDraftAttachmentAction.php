@@ -26,7 +26,7 @@ final readonly class DeleteDraftAttachmentAction
             ->where('email_id', $draftId)
             ->whereHas('email', fn (Builder $query): Builder => $query
                 ->where('user_id', $user->getKey())
-                ->where('team_id', $user->current_team_id)
+                ->where('workspace_id', $user->current_workspace_id)
                 ->where('status', EmailStatus::DRAFT))
             ->first();
 

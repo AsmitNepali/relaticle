@@ -124,7 +124,7 @@ final readonly class EmailSearchService
             ->join('connected_accounts as viewer_copy_accounts', 'viewer_copy_accounts.id', '=', 'viewer_copies.connected_account_id')
             ->whereNull('viewer_copies.deleted_at')
             ->whereNull('viewer_copy_accounts.deleted_at')
-            ->whereColumn('viewer_copies.team_id', 'emails.team_id')
+            ->whereColumn('viewer_copies.workspace_id', 'emails.workspace_id')
             ->whereColumn('viewer_copies.rfc_message_id', 'emails.rfc_message_id')
             ->where('viewer_copies.user_id', $viewerId)
             ->whereNotNull('emails.rfc_message_id');
@@ -139,7 +139,7 @@ final readonly class EmailSearchService
             ->from('email_shares')
             ->join('emails as share_source_emails', 'share_source_emails.id', '=', 'email_shares.email_id')
             ->where('email_shares.shared_with', $viewerId)
-            ->whereColumn('share_source_emails.team_id', 'emails.team_id')
+            ->whereColumn('share_source_emails.workspace_id', 'emails.workspace_id')
             ->whereColumn('share_source_emails.rfc_message_id', 'emails.rfc_message_id')
             ->whereNotNull('emails.rfc_message_id');
 

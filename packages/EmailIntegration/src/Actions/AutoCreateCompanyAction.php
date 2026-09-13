@@ -7,7 +7,7 @@ namespace Relaticle\EmailIntegration\Actions;
 use App\Enums\CreationSource;
 use App\Models\Company;
 use App\Models\CustomField;
-use App\Models\Team;
+use App\Models\Workspace;
 use App\Support\Database\AdvisoryLock;
 use Relaticle\CustomFields\Models\CustomField as BaseCustomField;
 use Relaticle\EmailIntegration\Support\CompanyDomainMatcher;
@@ -31,7 +31,7 @@ final readonly class AutoCreateCompanyAction
      * stripped). Distinct hosts such as accounts.printtest.com and
      * ideas.printtest.com do not share a lock.
      */
-    public function execute(string $domain, string $teamId, Team $team): Company
+    public function execute(string $domain, string $teamId, Workspace $team): Company
     {
         $host = $this->domainMatcher->host($domain);
 
@@ -59,11 +59,11 @@ final readonly class AutoCreateCompanyAction
      * sharing a first label (acme.com vs acme.org) are distinct companies, and
      * keying on name would clobber an unrelated same-named company's domains.
      */
-    private function createCompany(string $domain, string $teamId, Team $team): Company
+    private function createCompany(string $domain, string $teamId, Workspace $team): Company
     {
         $company = Company::query()->create([
             'name' => $this->domainToCompanyName($domain),
-            'team_id' => $teamId,
+            'workspace_id' => $teamId,
             'creation_source' => CreationSource::SYSTEM,
         ]);
 

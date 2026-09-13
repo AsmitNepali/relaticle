@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\CreationSource;
-use App\Models\Concerns\BelongsToTeamCreator;
+use App\Models\Concerns\BelongsToWorkspaceCreator;
 use App\Models\Concerns\HasActivityTimeline;
 use App\Models\Concerns\HasCreator;
 use App\Models\Concerns\HasNotes;
-use App\Models\Concerns\HasTeam;
+use App\Models\Concerns\HasWorkspace;
 use App\Observers\PeopleObserver;
 use App\Services\AvatarService;
 use Carbon\CarbonImmutable;
@@ -49,7 +49,7 @@ use Spatie\Activitylog\Support\LogOptions;
 ])]
 final class People extends Model implements HasAvatar, HasCustomFields, HasTimeline
 {
-    use BelongsToTeamCreator;
+    use BelongsToWorkspaceCreator;
     use HasActivityTimeline;
     use HasCreator;
     use HasEmails;
@@ -59,8 +59,8 @@ final class People extends Model implements HasAvatar, HasCustomFields, HasTimel
 
     use HasMeetings;
     use HasNotes;
-    use HasTeam;
     use HasUlids;
+    use HasWorkspace;
     use LogsActivity;
     use SoftDeletes;
     use UsesCustomFields;
@@ -120,7 +120,7 @@ final class People extends Model implements HasAvatar, HasCustomFields, HasTimel
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->logExcept([
-                'id', 'team_id', 'creator_id', 'creation_source', 'custom_fields',
+                'id', 'workspace_id', 'creator_id', 'creation_source', 'custom_fields',
                 'created_at', 'updated_at', 'deleted_at',
                 'last_email_at', 'last_interaction_at', 'email_count', 'inbound_email_count',
                 'outbound_email_count', 'meeting_count', 'last_meeting_at', 'company_id',

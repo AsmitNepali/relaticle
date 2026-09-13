@@ -11,16 +11,18 @@ use App\Models\CustomField;
 use App\Models\User;
 use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\RichEditor;
+use Filament\Schemas\Components\Component;
 use Illuminate\Database\Eloquent\Model;
 use Relaticle\CustomFields\Data\CustomFieldSettingsData;
 
 mutates(CompanyResource::class);
 
 beforeEach(function () {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 });
 
 it('can render the index page', function (): void {
@@ -29,7 +31,7 @@ it('can render the index page', function (): void {
 });
 
 it('can render the view page', function (): void {
-    $record = Company::factory()->recycle([$this->user, $this->team])->create();
+    $record = Company::factory()->recycle([$this->user, $this->workspace])->create();
 
     livewire(ViewCompany::class, ['record' => $record->getKey()])
         ->assertOk();
@@ -67,7 +69,7 @@ it('exposes the expected table columns', function (): void {
 });
 
 it('can sort `:dataset` column', function (string $column): void {
-    $records = Company::factory(3)->recycle([$this->user, $this->team])->create();
+    $records = Company::factory(3)->recycle([$this->user, $this->workspace])->create();
 
     $sortingKey = data_get($records->first(), $column) instanceof BackedEnum
         ? fn (Model $record) => data_get($record, $column)->value
@@ -81,7 +83,7 @@ it('can sort `:dataset` column', function (string $column): void {
 })->with(['name', 'accountOwner.name', 'creator.name', 'deleted_at', 'created_at', 'updated_at']);
 
 it('can search `:dataset` column', function (string $column): void {
-    $records = Company::factory(3)->recycle([$this->user, $this->team])->create();
+    $records = Company::factory(3)->recycle([$this->user, $this->workspace])->create();
     $search = data_get($records->first(), $column);
 
     $visibleRecords = $records->filter(fn (Model $record) => data_get($record, $column) === $search);
@@ -93,8 +95,8 @@ it('can search `:dataset` column', function (string $column): void {
 })->with(['name', 'accountOwner.name', 'creator.name']);
 
 it('cannot display trashed records by default', function (): void {
-    $records = Company::factory()->count(4)->recycle([$this->user, $this->team])->create();
-    $trashedRecords = Company::factory()->trashed()->count(6)->recycle([$this->user, $this->team])->create();
+    $records = Company::factory()->count(4)->recycle([$this->user, $this->workspace])->create();
+    $trashedRecords = Company::factory()->trashed()->count(6)->recycle([$this->user, $this->workspace])->create();
 
     livewire(ListCompanies::class)
         ->assertCanSeeTableRecords($records)
@@ -103,7 +105,7 @@ it('cannot display trashed records by default', function (): void {
 });
 
 it('can paginate records', function (): void {
-    $records = Company::factory(20)->recycle([$this->user, $this->team])->create();
+    $records = Company::factory(20)->recycle([$this->user, $this->workspace])->create();
 
     // Fetch records with the same sort order as the table (created_at DESC)
     $sortedRecords = Company::query()
@@ -118,7 +120,7 @@ it('can paginate records', function (): void {
 });
 
 it('can bulk delete records', function (): void {
-    $records = Company::factory(5)->recycle([$this->user, $this->team])->create();
+    $records = Company::factory(5)->recycle([$this->user, $this->workspace])->create();
 
     livewire(ListCompanies::class)
         ->assertCanSeeTableRecords($records)
@@ -141,12 +143,12 @@ it('can create a company', function (): void {
 
     $this->assertDatabaseHas(Company::class, [
         'name' => 'Acme Corp',
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
     ]);
 });
 
 it('can edit a company', function (): void {
-    $record = Company::factory()->recycle([$this->user, $this->team])->create();
+    $record = Company::factory()->recycle([$this->user, $this->workspace])->create();
 
     livewire(ListCompanies::class)
         ->callAction(TestAction::make('edit')->table($record), data: [
@@ -158,7 +160,7 @@ it('can edit a company', function (): void {
 });
 
 it('can delete a company', function (): void {
-    $record = Company::factory()->recycle([$this->user, $this->team])->create();
+    $record = Company::factory()->recycle([$this->user, $this->workspace])->create();
 
     livewire(ListCompanies::class)
         ->callAction(TestAction::make('delete')->table($record));
@@ -179,7 +181,7 @@ it('has `:dataset` filter', function (string $filter): void {
         ->assertTableFilterExists($filter);
 })->with(['creation_source', 'trashed']);
 
-it('sets creator_id and team_id via observer when creating a company', function (): void {
+it('sets creator_id and workspace_id via observer when creating a company', function (): void {
     livewire(ListCompanies::class)
         ->callAction('create', data: [
             'name' => 'Observer Test Corp',
@@ -189,23 +191,23 @@ it('sets creator_id and team_id via observer when creating a company', function 
     $company = Company::query()->where('name', 'Observer Test Corp')->first();
 
     expect($company->creator_id)->toBe($this->user->id)
-        ->and($company->team_id)->toBe($this->team->id);
+        ->and($company->workspace_id)->toBe($this->workspace->id);
 });
 
-it('authorizes team member to view and update own team company', function (): void {
-    $record = Company::factory()->recycle([$this->user, $this->team])->create();
+it('authorizes workspace member to view and update own workspace company', function (): void {
+    $record = Company::factory()->recycle([$this->user, $this->workspace])->create();
 
     expect($this->user->can('view', $record))->toBeTrue()
         ->and($this->user->can('update', $record))->toBeTrue()
         ->and($this->user->can('delete', $record))->toBeTrue();
 });
 
-it('denies non-team-member from viewing another team company', function (): void {
-    $otherUser = User::factory()->withTeam()->create();
-    $otherTeam = $otherUser->currentTeam;
+it('denies non-workspace-member from viewing another workspace company', function (): void {
+    $otherUser = User::factory()->withWorkspace()->create();
+    $otherWorkspace = $otherUser->currentWorkspace;
 
     $this->actingAs($otherUser);
-    $record = Company::factory()->for($otherTeam)->create();
+    $record = Company::factory()->for($otherWorkspace)->create();
     $this->actingAs($this->user);
 
     expect($this->user->can('view', $record))->toBeFalse()
@@ -217,7 +219,7 @@ it('denies non-team-member from viewing another team company', function (): void
 
 it('adds a newly typed tags-input value to the option list when editing a company', function (): void {
     $cf = CustomField::forceCreate([
-        'tenant_id' => $this->team->id,
+        'tenant_id' => $this->workspace->id,
         'code' => 'edit_labels282',
         'name' => 'Edit Labels',
         'type' => 'tags-input',
@@ -230,12 +232,12 @@ it('adds a newly typed tags-input value to the option list when editing a compan
     ]);
     $cf->options()->forceCreate([
         'custom_field_id' => $cf->id,
-        'tenant_id' => $this->team->id,
+        'tenant_id' => $this->workspace->id,
         'name' => 'Existing',
         'sort_order' => 1,
     ]);
 
-    $company = Company::factory()->recycle([$this->user, $this->team])->create();
+    $company = Company::factory()->recycle([$this->user, $this->workspace])->create();
 
     livewire(ListCompanies::class)
         ->callAction(
@@ -250,4 +252,30 @@ it('adds a newly typed tags-input value to the option list when editing a compan
     $optionNames = $cf->refresh()->options->pluck('name')->all();
     expect($optionNames)->toContain('Existing')
         ->toContain('TypedDuringEdit');
+});
+
+it('keeps the slash menu but not the document canvas on a rich-editor field added to companies', function (): void {
+    CustomField::forceCreate([
+        'tenant_id' => $this->workspace->id,
+        'code' => 'account_plan',
+        'name' => 'Account plan',
+        'type' => 'rich-editor',
+        'entity_type' => 'company',
+        'sort_order' => 50,
+        'active' => true,
+        'system_defined' => false,
+        'validation_rules' => [],
+        'settings' => new CustomFieldSettingsData,
+    ]);
+
+    $page = livewire(ListCompanies::class)
+        ->mountAction('create')
+        ->instance();
+
+    $editor = collect($page->getSchema($page->getMountedActionSchemaName())->getFlatComponents(withHidden: true))
+        ->first(fn (Component $component): bool => $component instanceof RichEditor);
+
+    expect($editor->getToolbarButtons())->toBe([])
+        ->and($editor->getExtraAttributes())->toHaveKey('data-slash-menu')
+        ->and($editor->getExtraAttributes())->not->toHaveKey('class');
 });

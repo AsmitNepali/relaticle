@@ -29,7 +29,7 @@ final readonly class MarkAllEmailsAsReadAction
      */
     public function execute(User $user, EmailFolder $folder, Company|Opportunity|People|null $record = null): int
     {
-        $query = ($record?->emails() ?? Email::query()->forTeam($user->current_team_id))
+        $query = ($record?->emails() ?? Email::query()->forWorkspace($user->current_workspace_id))
             ->withGlobalScope('visible', new VisibleEmailScope($user))
             ->unreadFor($user->getKey());
 

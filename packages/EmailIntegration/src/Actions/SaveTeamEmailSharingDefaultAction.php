@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Actions;
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Illuminate\Support\Facades\DB;
 use Relaticle\EmailIntegration\Enums\EmailPrivacyTier;
 use Relaticle\EmailIntegration\Services\PrivacyService;
@@ -18,7 +18,7 @@ final readonly class SaveTeamEmailSharingDefaultAction
         private PrivacyService $privacy,
     ) {}
 
-    public function execute(Team $team, User $actor, EmailPrivacyTier $newTier): void
+    public function execute(Workspace $team, User $actor, EmailPrivacyTier $newTier): void
     {
         $previousTier = $this->privacy->workspaceSharingTier($team);
 
