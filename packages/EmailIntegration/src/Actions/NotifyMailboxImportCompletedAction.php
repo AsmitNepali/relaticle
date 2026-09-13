@@ -34,10 +34,6 @@ final readonly class NotifyMailboxImportCompletedAction
             return false;
         }
 
-        if ($account->hasCalendar() && MailboxSyncTracker::isCalendarSyncing($account)) {
-            return false;
-        }
-
-        return true;
+        return ! $account->hasCalendar() || ! MailboxSyncTracker::isCalendarSyncing($account);
     }
 }
