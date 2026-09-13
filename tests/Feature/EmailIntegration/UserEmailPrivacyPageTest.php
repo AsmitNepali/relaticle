@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Livewire\App\Email\UserEmailPrivacySettings;
+use App\Models\Team;
 use App\Models\User;
 use Filament\Facades\Filament;
 use Relaticle\EmailIntegration\Actions\ApplyDefaultSharingTierToExistingEmailsAction;
@@ -84,6 +85,53 @@ it('retroactively updates non-customized emails when the user sharing preference
 
     expect($email->fresh()->privacy_tier)->toBe(EmailPrivacyTier::FULL)
         ->and($customized->fresh()->privacy_tier)->toBe(EmailPrivacyTier::PRIVATE);
+});
+
+it('resolves workspace defaults per email when clearing a user sharing override', function (): void {
+    $privateTeam = Team::factory()->create([
+        'user_id' => $this->owner->getKey(),
+        'default_email_sharing_tier' => EmailPrivacyTier::PRIVATE,
+    ]);
+    $this->owner->teams()->attach($privateTeam, ['role' => 'admin']);
+    $this->team->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
+    $this->owner->update(['default_email_sharing_tier' => EmailPrivacyTier::SUBJECT]);
+    $this->actingAs($this->owner);
+    Filament::setTenant($this->team);
+
+    $fullAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
+        'team_id' => $this->team->id,
+        'user_id' => $this->owner->id,
+    ]));
+    $privateAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
+        'team_id' => $privateTeam->getKey(),
+        'user_id' => $this->owner->id,
+    ]));
+
+    $fullWorkspaceEmail = Email::factory()->create([
+        'team_id' => $this->team->id,
+        'user_id' => $this->owner->id,
+        'connected_account_id' => $fullAccount->getKey(),
+        'privacy_tier' => EmailPrivacyTier::SUBJECT,
+        'privacy_tier_customized' => false,
+    ]);
+    $privateWorkspaceEmail = Email::factory()->create([
+        'team_id' => $privateTeam->getKey(),
+        'user_id' => $this->owner->id,
+        'connected_account_id' => $privateAccount->getKey(),
+        'privacy_tier' => EmailPrivacyTier::SUBJECT,
+        'privacy_tier_customized' => false,
+    ]);
+
+    livewire(UserEmailPrivacySettings::class)
+        ->set('data.default_email_sharing_tier', '')
+        ->callAction('saveTier', data: [
+            'full_access_confirmation' => 'I understand',
+        ])
+        ->assertNotified('Email privacy settings saved.');
+
+    expect($this->owner->fresh()->default_email_sharing_tier)->toBeNull()
+        ->and($fullWorkspaceEmail->fresh()->privacy_tier)->toBe(EmailPrivacyTier::FULL)
+        ->and($privateWorkspaceEmail->fresh()->privacy_tier)->toBe(EmailPrivacyTier::PRIVATE);
 });
 
 it('clears a user sharing override when selecting use workspace default', function (): void {
