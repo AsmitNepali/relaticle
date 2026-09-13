@@ -109,6 +109,29 @@ it('saves account settings without confirmation when the sharing tier is unchang
         ->and($this->user->fresh()->default_email_sharing_tier)->toBe(EmailPrivacyTier::SUBJECT);
 });
 
+it('clears a sharing override when selecting use workspace default even if the effective tier stays equal', function (): void {
+    $this->team->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
+    $this->user->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
+
+    livewire(EmailAccountSettingsPage::class, ['account' => $this->account->id])
+        ->set('data.default_email_sharing_tier', '')
+        ->callAction('save')
+        ->assertNotified();
+
+    expect($this->user->fresh()->default_email_sharing_tier)->toBeNull();
+});
+
+it('persists an explicit sharing override when the effective tier matches the workspace default', function (): void {
+    $this->team->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
+
+    livewire(EmailAccountSettingsPage::class, ['account' => $this->account->id])
+        ->set('data.default_email_sharing_tier', EmailPrivacyTier::FULL->value)
+        ->callAction('save')
+        ->assertNotified();
+
+    expect($this->user->fresh()->default_email_sharing_tier)->toBe(EmailPrivacyTier::FULL);
+});
+
 it('adds blocklist entries from the blocklist modal', function (): void {
     livewire(EmailAccountSettingsPage::class, ['account' => $this->account->id])
         ->callAction('addBlocklist', data: [
