@@ -201,7 +201,7 @@ final class MicrosoftGraphMailService implements MailServiceInterface
      * on demand, mirroring how large Gmail attachments are handled.
      *
      * @param  array<int, array<string, mixed>>  $attachments
-     * @return array<int, array{filename: string|null, mime_type: string|null, size: int, content_id: string|null, attachment_id: string|null, inline_data: string|null}>
+     * @return array<int, array{filename: string|null, mime_type: string|null, size: int, content_id: string|null, attachment_id: string|null, inline_data: string|null, is_inline: bool}>
      */
     private function mapInboundAttachments(array $attachments): array
     {
@@ -212,6 +212,7 @@ final class MicrosoftGraphMailService implements MailServiceInterface
             'content_id' => isset($attachment['contentId']) ? (string) $attachment['contentId'] : null,
             'attachment_id' => isset($attachment['id']) ? (string) $attachment['id'] : null,
             'inline_data' => null,
+            'is_inline' => ($attachment['isInline'] ?? false) === true,
         ], $attachments);
     }
 
