@@ -33,7 +33,7 @@ final readonly class SaveUserEmailSharingDefaultAction
                 return;
             }
 
-            if ($previousEffectiveTier !== $effectiveTier) {
+            if ($previousEffectiveTier !== $effectiveTier || ! $hadOverride) {
                 $this->applyRetroactive->executeForUser($user, $effectiveTier);
             }
         });

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\Team;
 use App\Models\User;
 use Filament\Facades\Filament;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -9,6 +10,7 @@ use Relaticle\EmailIntegration\Enums\EmailBlocklistType;
 use Relaticle\EmailIntegration\Enums\EmailPrivacyTier;
 use Relaticle\EmailIntegration\Filament\Pages\EmailAccountSettingsPage;
 use Relaticle\EmailIntegration\Models\ConnectedAccount;
+use Relaticle\EmailIntegration\Models\Email;
 use Relaticle\EmailIntegration\Models\EmailBlocklist;
 use Relaticle\EmailIntegration\Models\EmailSignature;
 
@@ -122,14 +124,32 @@ it('clears a sharing override when selecting use workspace default even if the e
 });
 
 it('persists an explicit sharing override when the effective tier matches the workspace default', function (): void {
+    $metadataTeam = Team::factory()->create([
+        'user_id' => $this->user->getKey(),
+        'default_email_sharing_tier' => EmailPrivacyTier::METADATA_ONLY,
+    ]);
+    $this->user->teams()->attach($metadataTeam, ['role' => 'admin']);
     $this->team->update(['default_email_sharing_tier' => EmailPrivacyTier::FULL]);
+
+    $metadataAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
+        'team_id' => $metadataTeam->getKey(),
+        'user_id' => $this->user->id,
+    ]));
+    $metadataWorkspaceEmail = Email::factory()->create([
+        'team_id' => $metadataTeam->getKey(),
+        'user_id' => $this->user->id,
+        'connected_account_id' => $metadataAccount->getKey(),
+        'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
+        'privacy_tier_customized' => false,
+    ]);
 
     livewire(EmailAccountSettingsPage::class, ['account' => $this->account->id])
         ->set('data.default_email_sharing_tier', EmailPrivacyTier::FULL->value)
         ->callAction('save')
         ->assertNotified();
 
-    expect($this->user->fresh()->default_email_sharing_tier)->toBe(EmailPrivacyTier::FULL);
+    expect($this->user->fresh()->default_email_sharing_tier)->toBe(EmailPrivacyTier::FULL)
+        ->and($metadataWorkspaceEmail->fresh()->privacy_tier)->toBe(EmailPrivacyTier::FULL);
 });
 
 it('adds blocklist entries from the blocklist modal', function (): void {
