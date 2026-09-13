@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\Schema;
  * Recreate ai_summaries after 2026_07_30_120000 dropped it.
  *
  * That drop has already run on existing installations. Removing it from
- * the repo does not restore the table. Thread summary generation and
- * SubscriberProfileDeriver::hasAiUsage() query this table after upgrade.
+ * the repo does not restore the table. Email thread summary generation queries
+ * this table after upgrade.
  */
 return new class extends Migration
 {
