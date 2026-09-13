@@ -11,6 +11,7 @@ use Relaticle\EmailIntegration\Enums\EmailAccountStatus;
 use Relaticle\EmailIntegration\Filament\Pages\EmailAccountsPage;
 use Relaticle\EmailIntegration\Livewire\MailboxImportStatus;
 use Relaticle\EmailIntegration\Models\ConnectedAccount;
+use Relaticle\EmailIntegration\Services\MailboxSyncTracker;
 
 mutates(Dashboard::class, EmailAccountsPage::class, MailboxImportStatus::class);
 
@@ -87,6 +88,43 @@ it('keeps a completed import visible until dismiss on this instance', function (
         ->assertSee('data-mailbox-import-complete-icon', false)
         ->assertSee('text-success-600', false)
         ->assertSee(trans_choice('filament/pages/email-accounts.sync_status.emails_processed', 643, ['count' => 643]));
+});
+
+it('shows calendar-only sync progress on the home import section', function (): void {
+    $user = User::factory()->withTeam()->create();
+    $this->actingAs($user);
+    Filament::setCurrentPanel(Filament::getPanel('app'));
+    Filament::setTenant($user->currentTeam);
+
+    $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
+        'team_id' => $user->currentTeam->getKey(),
+        'user_id' => $user->getKey(),
+        'sync_cursor' => 'done',
+        'calendar_sync_cursor' => 'done',
+        'capabilities' => ['email' => true, 'calendar' => true],
+    ]));
+
+    MailboxSyncTracker::markCalendarStarted($account);
+
+    livewire(MailboxImportStatus::class, ['placement' => 'home'])
+        ->assertSee(__('filament/pages/email-accounts.importing_percent', ['percent' => 0]))
+        ->assertSee(__('filament/pages/email-accounts.sync_status.title_syncing'));
+});
+
+it('shows import complete while incremental sync runs after history finishes', function (): void {
+    $account = importingAccount();
+
+    $component = livewire(MailboxImportStatus::class)
+        ->assertSee(__('filament/pages/email-accounts.sync_status.title_syncing'));
+
+    $account->update(['sync_cursor' => 'history-1', 'last_synced_at' => now()]);
+
+    MailboxSyncTracker::markCalendarStarted($account);
+
+    $component->call('refreshStatus')
+        ->assertSee(__('filament/pages/email-accounts.sync_status.title_complete'))
+        ->assertSee(__('filament/pages/email-accounts.importing_percent', ['percent' => 100]))
+        ->assertSee('data-mailbox-import-complete-icon', false);
 });
 
 it('hides the section after dismiss', function (): void {

@@ -63,6 +63,69 @@ it('does not match hidden subject or snippet text when searching metadata-only t
     expect($page->instance()->emails()->pluck('id')->all())->toBe([$email->getKey()]);
 });
 
+it('does not match hidden subject text when the viewer only has a disconnected synced copy', function (): void {
+    $owner = User::factory()->withTeam()->create();
+    $team = $owner->currentTeam;
+    $viewer = User::factory()->create(['current_team_id' => $team->id]);
+    $team->users()->attach($viewer, ['role' => 'editor']);
+
+    $ownerAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
+        'team_id' => $team->id,
+        'user_id' => $owner->id,
+    ]));
+
+    $viewerAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
+        'team_id' => $team->id,
+        'user_id' => $viewer->id,
+    ]));
+
+    $rfcMessageId = '<test-disconnected-copy@example.com>';
+
+    $email = Email::factory()->inbound()->create([
+        'team_id' => $team->id,
+        'user_id' => $owner->id,
+        'connected_account_id' => $ownerAccount->getKey(),
+        'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
+        'rfc_message_id' => $rfcMessageId,
+        'subject' => 'This is mass email test',
+        'snippet' => 'Secret preview text',
+        'is_internal' => false,
+        'sent_at' => now(),
+    ]);
+
+    Email::factory()->inbound()->create([
+        'team_id' => $team->id,
+        'user_id' => $viewer->id,
+        'connected_account_id' => $viewerAccount->getKey(),
+        'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
+        'rfc_message_id' => $rfcMessageId,
+        'subject' => 'This is mass email test',
+        'snippet' => 'Secret preview text',
+        'is_internal' => false,
+        'sent_at' => now(),
+    ]);
+
+    $viewerAccount->delete();
+
+    EmailParticipant::query()->create([
+        'email_id' => $email->id,
+        'email_address' => 'laravelproject4u@gmail.com',
+        'name' => null,
+        'role' => EmailParticipantRole::TO,
+    ]);
+
+    $this->actingAs($viewer);
+    Filament::setTenant($team);
+
+    $page = livewire(EmailInboxPage::class)->set('accountId', 'all');
+
+    expect($page->instance()->emails()->pluck('id')->all())->toBe([$email->getKey()]);
+
+    $page->set('search', 'this is mass');
+
+    expect($page->instance()->emails()->pluck('id')->all())->toBe([]);
+});
+
 it('still matches subject text on emails the viewer owns', function (): void {
     $owner = User::factory()->withTeam()->create();
     $team = $owner->currentTeam;

@@ -121,6 +121,9 @@ final readonly class EmailSearchService
     private function syncedCopyExists(BaseBuilder $query, string $viewerId): BaseBuilder
     {
         return $query->from('emails as viewer_copies')
+            ->join('connected_accounts as viewer_copy_accounts', 'viewer_copy_accounts.id', '=', 'viewer_copies.connected_account_id')
+            ->whereNull('viewer_copies.deleted_at')
+            ->whereNull('viewer_copy_accounts.deleted_at')
             ->whereColumn('viewer_copies.team_id', 'emails.team_id')
             ->whereColumn('viewer_copies.rfc_message_id', 'emails.rfc_message_id')
             ->where('viewer_copies.user_id', $viewerId)

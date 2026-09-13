@@ -39,7 +39,11 @@ final class MailboxImportStatus extends Component
     {
         $this->ownedAccountsCache = null;
 
-        foreach ($this->syncingOwnedAccounts() as $account) {
+        foreach ($this->ownedAccounts() as $account) {
+            if (! $account->isImportingHistory()) {
+                continue;
+            }
+
             $id = (string) $account->getKey();
 
             if (! in_array($id, $this->seenImportingIds, true)) {
@@ -62,7 +66,9 @@ final class MailboxImportStatus extends Component
 
     public function shouldPoll(): bool
     {
-        return array_any($this->visibleMailboxes(), fn (array $row): bool => $row['importing']);
+        return $this->ownedAccounts()->contains(
+            fn (ConnectedAccount $account): bool => $this->isMailboxImporting($account),
+        );
     }
 
     /**
@@ -87,7 +93,8 @@ final class MailboxImportStatus extends Component
                 continue;
             }
 
-            $incrementalOnly = $account->isIncrementalSyncing();
+            $importing = $this->isMailboxImporting($account);
+            $incrementalOnly = $importing && $account->isIncrementalSyncing();
 
             $rows[] = [
                 'id' => $id,
@@ -95,8 +102,8 @@ final class MailboxImportStatus extends Component
                 'imported' => $account->syncEmailsProcessedCount(),
                 'meetingsImported' => $account->syncMeetingsProcessedCount(),
                 'hasCalendar' => $account->hasCalendar(),
-                'percent' => $account->syncDisplayPercent(),
-                'importing' => $account->showsSyncProgress(),
+                'percent' => $importing ? $account->syncDisplayPercent() : 100,
+                'importing' => $importing,
                 'incrementalOnly' => $incrementalOnly,
                 'incrementalLabel' => null,
                 'settings_url' => EmailAccountSettingsPage::getUrl(['account' => $id]),
@@ -117,13 +124,17 @@ final class MailboxImportStatus extends Component
         ]);
     }
 
-    /**
-     * @return Collection<int, ConnectedAccount>
-     */
-    private function syncingOwnedAccounts(): Collection
+    private function isMailboxImporting(ConnectedAccount $account): bool
     {
-        return $this->ownedAccounts()
-            ->filter(fn (ConnectedAccount $account): bool => $account->showsSyncProgress());
+        if ($account->isImportingHistory()) {
+            return true;
+        }
+
+        if (! $account->showsSyncProgress()) {
+            return false;
+        }
+
+        return ! in_array((string) $account->getKey(), $this->seenImportingIds, true);
     }
 
     /**
