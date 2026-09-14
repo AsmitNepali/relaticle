@@ -11,61 +11,36 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('connected_accounts', function (Blueprint $table): void {
-            $table->renameColumn('team_id', 'workspace_id');
-        });
-
-        Schema::table('email_batches', function (Blueprint $table): void {
-            $table->renameColumn('team_id', 'workspace_id');
-        });
-
-        Schema::table('emails', function (Blueprint $table): void {
-            $table->renameColumn('team_id', 'workspace_id');
-        });
-
-        Schema::table('email_threads', function (Blueprint $table): void {
-            $table->renameColumn('team_id', 'workspace_id');
-        });
-
-        Schema::table('email_templates', function (Blueprint $table): void {
-            $table->renameColumn('team_id', 'workspace_id');
-        });
-
-        Schema::table('email_signatures', function (Blueprint $table): void {
-            $table->renameColumn('team_id', 'workspace_id');
-        });
-
-        Schema::table('email_shares', function (Blueprint $table): void {
-            $table->renameColumn('team_id', 'workspace_id');
-        });
-
-        Schema::table('public_email_domains', function (Blueprint $table): void {
-            $table->renameColumn('team_id', 'workspace_id');
-        });
-
-        Schema::table('protected_recipients', function (Blueprint $table): void {
-            $table->renameColumn('team_id', 'workspace_id');
-        });
-
-        Schema::table('meetings', function (Blueprint $table): void {
-            $table->renameColumn('team_id', 'workspace_id');
-        });
-
-        Schema::table('email_blocklists', function (Blueprint $table): void {
-            $table->renameColumn('team_id', 'workspace_id');
-        });
-
-        Schema::table('team_email_blocklists', function (Blueprint $table): void {
-            $table->renameColumn('team_id', 'workspace_id');
-        });
-
-        Schema::table('ai_summaries', function (Blueprint $table): void {
-            $table->renameColumn('team_id', 'workspace_id');
-        });
+        $this->renameTeamIdColumn('connected_accounts');
+        $this->renameTeamIdColumn('email_batches');
+        $this->renameTeamIdColumn('emails');
+        $this->renameTeamIdColumn('email_threads');
+        $this->renameTeamIdColumn('email_templates');
+        $this->renameTeamIdColumn('email_signatures');
+        $this->renameTeamIdColumn('email_shares');
+        $this->renameTeamIdColumn('public_email_domains');
+        $this->renameTeamIdColumn('protected_recipients');
+        $this->renameTeamIdColumn('meetings');
+        $this->renameTeamIdColumn('email_blocklists');
+        $this->renameTeamIdColumn('team_email_blocklists');
+        $this->renameTeamIdColumn('ai_summaries');
 
         $this->renameCatalogObjects();
 
-        Schema::rename('team_email_blocklists', 'workspace_email_blocklists');
+        if (Schema::hasTable('team_email_blocklists')) {
+            Schema::rename('team_email_blocklists', 'workspace_email_blocklists');
+        }
+    }
+
+    private function renameTeamIdColumn(string $table): void
+    {
+        if (! Schema::hasTable($table) || ! Schema::hasColumn($table, 'team_id')) {
+            return;
+        }
+
+        Schema::table($table, function (Blueprint $blueprint): void {
+            $blueprint->renameColumn('team_id', 'workspace_id');
+        });
     }
 
     /**
