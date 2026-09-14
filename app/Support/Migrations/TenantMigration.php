@@ -7,7 +7,7 @@ namespace App\Support\Migrations;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-final class TenantMigration
+final readonly class TenantMigration
 {
     public static function usesWorkspacesTable(): bool
     {

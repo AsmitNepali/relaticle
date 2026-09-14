@@ -1764,13 +1764,13 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
         [$forwardable, $rejected] = resolve(ForwardAttachmentCopyService::class)
             ->forwardableNonInlineAttachments($email);
 
-        $this->savedAttachments = $forwardable
+        $this->savedAttachments = array_values($forwardable
             ->map(fn (EmailAttachment $attachment): array => [
                 'id' => (string) $attachment->getKey(),
                 'filename' => (string) $attachment->filename,
                 'size' => (int) $attachment->size,
             ])
-            ->all();
+            ->all());
 
         if ($rejected === []) {
             return;
