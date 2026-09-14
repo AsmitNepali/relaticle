@@ -38,6 +38,7 @@ use Relaticle\EmailIntegration\Enums\EmailStatus;
 use Relaticle\EmailIntegration\Filament\Concerns\AssertsAllowedEmailRecipients;
 use Relaticle\EmailIntegration\Filament\Concerns\HasEmailFeatureFlag;
 use Relaticle\EmailIntegration\Filament\Concerns\HasEmailReaderActions;
+use Relaticle\EmailIntegration\Filament\Concerns\PreparesForwardAttachmentSendData;
 use Relaticle\EmailIntegration\Filament\Concerns\RedirectsToGrantSend;
 use Relaticle\EmailIntegration\Models\ConnectedAccount;
 use Relaticle\EmailIntegration\Models\Email;
@@ -56,6 +57,7 @@ final class EmailInboxPage extends Page
     use AssertsAllowedEmailRecipients;
     use HasEmailFeatureFlag;
     use HasEmailReaderActions;
+    use PreparesForwardAttachmentSendData;
     use RedirectsToGrantSend;
     use WithPagination;
 
@@ -400,7 +402,11 @@ final class EmailInboxPage extends Page
             ))
             ->schema($this->replyFormSchema())
             ->action(function (array $data, array $arguments): void {
-                $this->submitReplyForward($data, $arguments['mode'] ?? 'reply');
+                $this->submitReplyForward(
+                    $data,
+                    $arguments['mode'] ?? 'reply',
+                    isset($arguments['emailId']) ? (string) $arguments['emailId'] : null,
+                );
             });
     }
 
@@ -472,7 +478,7 @@ final class EmailInboxPage extends Page
     /**
      * @param  array<string, mixed>  $data
      */
-    private function submitReplyForward(array $data, string $mode): void
+    private function submitReplyForward(array $data, string $mode, ?string $forwardSourceEmailId = null): void
     {
         $source = match ($mode) {
             'reply_all' => EmailCreationSource::REPLY_ALL,
@@ -513,6 +519,20 @@ final class EmailInboxPage extends Page
             $threadSource,
         )) {
             return;
+        }
+
+        if ($mode === 'forward' && $forwardSourceEmailId !== null) {
+            $merged = $this->mergeForwardAttachmentsIntoSendData(
+                $this->authUser(),
+                $this->resolveTeamEmail($forwardSourceEmailId, 'view'),
+                $data,
+            );
+
+            if ($merged === null) {
+                return;
+            }
+
+            $data = $merged;
         }
 
         $email = resolve(SendEmailAction::class)->execute(
@@ -648,6 +668,7 @@ final class EmailInboxPage extends Page
      *     privacy_tier: EmailPrivacyTier,
      *     batch_id: null,
      *     priority: EmailPriority,
+     *     attachment_attributes: array<string, array{is_inline?: bool, content_id?: ?string}>,
      * }
      */
     private function buildSendData(array $data, EmailCreationSource $source): array
@@ -676,6 +697,7 @@ final class EmailInboxPage extends Page
             'priority' => EmailPriority::PRIORITY,
             'attachments' => $data['attachments'] ?? [],
             'attachment_file_names' => $data['attachment_file_names'] ?? [],
+            'attachment_attributes' => $data['attachment_attributes'] ?? [],
         ];
     }
 
