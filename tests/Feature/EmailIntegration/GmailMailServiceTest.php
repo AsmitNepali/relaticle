@@ -230,6 +230,32 @@ it('sends a reply without a provider thread id when the thread belongs to anothe
         ->and($raw)->toContain('In-Reply-To: <original@example.com>');
 });
 
+it('strips quotes and newlines from recipient display names to prevent header injection', function (): void {
+    $account = ConnectedAccount::factory()->make([
+        'email_address' => 'sender@example.com',
+        'display_name' => 'Sender',
+    ]);
+
+    $captured = null;
+    $gmail = fakeGmail(function (Message $message) use (&$captured): void {
+        $captured = $message;
+    });
+
+    new GmailService($account, $gmail)->sendMessage([
+        'subject' => 'Injection attempt',
+        'body_html' => '<p>Body</p>',
+        'to' => [[
+            'email' => 'recipient@example.com',
+            'name' => "evil\"\r\nBcc: attacker@example.com",
+        ]],
+    ]);
+
+    $raw = decodeRaw($captured);
+
+    expect($raw)->toContain('To: "evilBcc: attacker@example.com" <recipient@example.com>')
+        ->and($raw)->not->toContain("\r\nBcc: attacker@example.com");
+});
+
 it('strips quotes and newlines from attachment filenames to prevent header injection', function (): void {
     $account = ConnectedAccount::factory()->make([
         'email_address' => 'sender@example.com',
