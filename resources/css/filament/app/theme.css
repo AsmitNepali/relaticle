@@ -625,12 +625,8 @@ body:has([data-sidebar-workspace-toggle]) .fi-topbar-collapse-sidebar-btn-ctn {
 }
 
 /* Sidebar scrollable content area */
-#fi-main-sidebar.fi-sidebar {
-    @apply flex min-h-0 flex-col;
-}
-
-#fi-main-sidebar > .fi-sidebar-nav {
-    @apply min-h-0 flex-1 overflow-y-auto overflow-x-hidden;
+.fi-sidebar-nav {
+    @apply overflow-y-auto overflow-x-hidden;
     scrollbar-width: thin;
     scrollbar-color: theme('colors.gray.400') theme('colors.gray.100');
 }

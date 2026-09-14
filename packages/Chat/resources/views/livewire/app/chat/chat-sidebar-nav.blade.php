@@ -84,31 +84,6 @@
                 {{ __("No chats yet. Ask about a deal, a contact, or what's overdue.") }}
             </li>
         @else
-            @if($hasMore)
-                <li
-                    x-show="$store.sidebar.isOpen"
-                    class="fi-sidebar-item"
-                >
-                    <button
-                        type="button"
-                        @click="window.dispatchEvent(new CustomEvent('chat:open-all-chats'))"
-                        class="fi-sidebar-item-btn w-full text-start opacity-60 transition hover:opacity-100"
-                        aria-label="{{ __('Open all chats') }}"
-                    >
-                        <x-heroicon-o-ellipsis-horizontal class="fi-icon fi-size-lg fi-sidebar-item-icon" />
-                        <span
-                            x-show="$store.sidebar.isOpen"
-                            x-transition:enter="fi-transition-enter"
-                            x-transition:enter-start="fi-transition-enter-start"
-                            x-transition:enter-end="fi-transition-enter-end"
-                            class="fi-sidebar-item-label"
-                        >
-                            {{ __('All chats') }}
-                        </span>
-                    </button>
-                </li>
-            @endif
-
             @foreach($conversations as $conversation)
                 @php
                     $chatUrl = \App\Filament\Pages\ChatConversation::getUrl(['conversationId' => $conversation->id]);
@@ -256,6 +231,31 @@
                     </button>
                 </li>
             @endforeach
+
+            @if($hasMore)
+                <li
+                    x-show="$store.sidebar.isOpen"
+                    class="fi-sidebar-item"
+                >
+                    <button
+                        type="button"
+                        @click="window.dispatchEvent(new CustomEvent('chat:open-all-chats'))"
+                        class="fi-sidebar-item-btn w-full text-start opacity-60 transition hover:opacity-100"
+                        aria-label="{{ __('Open all chats') }}"
+                    >
+                        <x-heroicon-o-ellipsis-horizontal class="fi-icon fi-size-lg fi-sidebar-item-icon" />
+                        <span
+                            x-show="$store.sidebar.isOpen"
+                            x-transition:enter="fi-transition-enter"
+                            x-transition:enter-start="fi-transition-enter-start"
+                            x-transition:enter-end="fi-transition-enter-end"
+                            class="fi-sidebar-item-label"
+                        >
+                            {{ __('All chats') }}
+                        </span>
+                    </button>
+                </li>
+            @endif
         @endif
     </ul>
 </li>
