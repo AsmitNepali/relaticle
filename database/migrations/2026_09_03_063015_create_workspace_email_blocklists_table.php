@@ -13,7 +13,7 @@ return new class extends Migration
     {
         $workspaceId = TenantMigration::foreignKeyColumn();
 
-        Schema::create('team_email_blocklists', function (Blueprint $table) use ($workspaceId): void {
+        Schema::create('workspace_email_blocklists', function (Blueprint $table) use ($workspaceId): void {
             $table->ulid('id')->primary();
             $table->foreignUlid($workspaceId)->constrained(TenantMigration::table())->cascadeOnDelete();
             $table->string('type', 20);

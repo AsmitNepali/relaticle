@@ -63,13 +63,13 @@ return new class extends Migration
             $table->index(['connected_account_id', 'sent_at']);
             $table->index('provider_message_id');
             $table->index(['user_id', 'privacy_tier']);
-            $table->index([$workspaceId, 'deleted_at', 'creation_source', 'created_at'], 'idx_emails_team_activity');
+            $table->index([$workspaceId, 'deleted_at', 'creation_source', 'created_at'], 'idx_emails_workspace_activity');
             $table->index('batch_id');
             $table->index(['connected_account_id', 'status', 'scheduled_for'], 'idx_emails_dispatcher');
             $table->index(['user_id', 'status'], 'idx_emails_user_status');
             $table->index(
                 [$workspaceId, 'user_id', 'rfc_message_id'],
-                'emails_team_user_message_id_idx',
+                'emails_workspace_user_message_id_idx',
             );
         });
     }

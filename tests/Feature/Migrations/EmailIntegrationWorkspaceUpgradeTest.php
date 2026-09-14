@@ -10,11 +10,19 @@ use Illuminate\Support\Facades\Schema;
 
 mutates(TenantMigration::class);
 
-function runConnectedAccountsMigration(): void
-{
-    $migration = require database_path('migrations/2026_03_21_050414_create_connected_accounts_table.php');
-    $migration->up();
-}
+test('email integration tables are created with workspace_id', function (): void {
+    expect(Schema::hasColumn('connected_accounts', 'workspace_id'))->toBeTrue()
+        ->and(Schema::hasColumn('connected_accounts', 'team_id'))->toBeFalse()
+        ->and(Schema::hasColumn('emails', 'workspace_id'))->toBeTrue()
+        ->and(Schema::hasColumn('emails', 'team_id'))->toBeFalse()
+        ->and(Schema::hasColumn('meetings', 'workspace_id'))->toBeTrue()
+        ->and(Schema::hasColumn('ai_summaries', 'workspace_id'))->toBeTrue()
+        ->and(Schema::hasColumn('ai_summaries', 'team_id'))->toBeFalse()
+        ->and(Schema::hasTable('workspace_email_blocklists'))->toBeTrue()
+        ->and(Schema::hasTable('team_email_blocklists'))->toBeFalse()
+        ->and(Schema::hasColumn('workspace_email_blocklists', 'workspace_id'))->toBeTrue()
+        ->and(TenantMigration::foreignKeyColumn())->toBe('workspace_id');
+});
 
 test('connected accounts migration creates workspace_id when teams was already renamed', function (): void {
     expect(Schema::hasTable('workspaces'))->toBeTrue()
@@ -23,7 +31,8 @@ test('connected accounts migration creates workspace_id when teams was already r
 
     DB::statement('DROP TABLE IF EXISTS connected_accounts CASCADE');
 
-    runConnectedAccountsMigration();
+    $migration = require database_path('migrations/2026_03_21_050414_create_connected_accounts_table.php');
+    $migration->up();
 
     expect(Schema::hasColumn('connected_accounts', 'workspace_id'))->toBeTrue()
         ->and(Schema::hasColumn('connected_accounts', 'team_id'))->toBeFalse();

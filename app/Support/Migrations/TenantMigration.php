@@ -21,7 +21,7 @@ final readonly class TenantMigration
 
     public static function foreignKeyColumn(): string
     {
-        return self::usesWorkspacesTable() ? 'workspace_id' : 'team_id';
+        return 'workspace_id';
     }
 
     public static function personalColumn(): string

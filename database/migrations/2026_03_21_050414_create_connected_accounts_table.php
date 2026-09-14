@@ -58,14 +58,13 @@ return new class extends Migration
 
             $table->unique(
                 ['user_id', $workspaceId, 'provider', 'email_address'],
-                'connected_accounts_user_team_provider_email_unique',
+                'connected_accounts_user_workspace_provider_email_unique',
             );
             $table->index([$workspaceId, 'status']);
         });
 
-        // At most one live default account per user within a team.
         DB::statement(
-            'CREATE UNIQUE INDEX connected_accounts_one_default_per_user_team '.
+            'CREATE UNIQUE INDEX connected_accounts_one_default_per_user_workspace '.
             "ON connected_accounts (user_id, {$workspaceId}) ".
             'WHERE is_default = true AND deleted_at IS NULL'
         );
