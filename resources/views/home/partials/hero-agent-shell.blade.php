@@ -71,6 +71,12 @@
                 <x-heroicon-o-chevron-up class="w-3 h-3 text-gray-400 dark:text-zinc-500"/>
             </div>
 
+            {{-- All chats trigger, mirroring chat-sidebar-nav.blade.php when the list overflows --}}
+            <div class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-gray-500 opacity-60 dark:text-zinc-400">
+                <x-heroicon-o-ellipsis-horizontal class="w-4 h-4 shrink-0"/>
+                <span>All chats</span>
+            </div>
+
             <div id="hero-shell-nav-chat" class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-gray-700 dark:text-zinc-200">
                 <x-heroicon-o-chat-bubble-left class="w-4 h-4 shrink-0 text-gray-400 dark:text-zinc-500"/>
                 <span class="truncate">Overdue tasks this week</span>
@@ -86,12 +92,6 @@
                     <span class="truncate">{{ $heroChatTitle }}</span>
                 </div>
             @endforeach
-
-            {{-- All chats trigger, mirroring the "All chats" footer item in chat-sidebar-nav.blade.php --}}
-            <div class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-gray-500 opacity-60 dark:text-zinc-400">
-                <x-heroicon-o-ellipsis-horizontal class="w-4 h-4 shrink-0"/>
-                <span>All chats</span>
-            </div>
         </div>
     </nav>
 </aside>
