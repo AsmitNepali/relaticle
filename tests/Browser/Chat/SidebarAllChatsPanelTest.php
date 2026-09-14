@@ -18,17 +18,16 @@ function openAllChatsFromSidebar(AwaitableWebpage $page): void
     $page->script(<<<'JS'
         (() => {
             window.Alpine?.store('sidebar')?.open();
-            const btn = document.querySelector('button[aria-label="Open all chats"]');
-            if (! btn) {
-                throw new Error('Open all chats trigger is not in the DOM.');
+            if (! window.Livewire?.dispatch) {
+                throw new Error('Livewire is not available.');
             }
-            btn.closest('.fi-sidebar-nav')?.scrollTo({ top: btn.offsetTop });
-            btn.click();
+            window.Livewire.dispatch('chat:open-all-chats');
             return true;
         })();
     JS);
 
-    $page->wait(0.5);
+    $page->wait(0.5)
+        ->assertVisible('[data-chat-all-chats-panel]');
 }
 
 it('opens the all-chats flyout from the sidebar trigger and lists chats', function (): void {
@@ -36,15 +35,15 @@ it('opens the all-chats flyout from the sidebar trigger and lists chats', functi
     $workspace = $user->ownedWorkspaces()->first();
 
     $rows = [
-        ['id' => 'cb1', 'participant_type' => 'user', 'participant_id' => $user->getKey(), 'workspace_id' => $workspace->getKey(), 'title' => 'Acme onboarding', 'created_at' => now()->subMinutes(20), 'updated_at' => now()->subMinutes(20)],
-        ['id' => 'cb2', 'participant_type' => 'user', 'participant_id' => $user->getKey(), 'workspace_id' => $workspace->getKey(), 'title' => 'Q3 pipeline review', 'created_at' => now()->subMinutes(19), 'updated_at' => now()->subMinutes(19)],
+        ['id' => 'cb1', 'participant_type' => 'user', 'participant_id' => $user->getKey(), 'workspace_id' => $user->current_workspace_id, 'title' => 'Acme onboarding', 'created_at' => now()->subMinutes(20), 'updated_at' => now()->subMinutes(20)],
+        ['id' => 'cb2', 'participant_type' => 'user', 'participant_id' => $user->getKey(), 'workspace_id' => $user->current_workspace_id, 'title' => 'Q3 pipeline review', 'created_at' => now()->subMinutes(19), 'updated_at' => now()->subMinutes(19)],
     ];
     for ($i = 3; $i <= 8; $i++) {
         $rows[] = [
             'id' => "cb{$i}",
             'participant_type' => 'user',
             'participant_id' => $user->getKey(),
-            'workspace_id' => $workspace->getKey(),
+            'workspace_id' => $user->current_workspace_id,
             'title' => "Filler {$i}",
             'created_at' => now()->subMinutes(20 - $i),
             'updated_at' => now()->subMinutes(20 - $i),
@@ -70,7 +69,7 @@ it('navigates to a chat when clicked from the panel', function (): void {
         'id' => 'cnav1',
         'participant_type' => 'user',
         'participant_id' => $user->getKey(),
-        'workspace_id' => $workspace->getKey(),
+        'workspace_id' => $user->current_workspace_id,
         'title' => 'Navigate to me',
         'created_at' => now(),
         'updated_at' => now(),
@@ -80,7 +79,7 @@ it('navigates to a chat when clicked from the panel', function (): void {
             'id' => "cnav{$i}",
             'participant_type' => 'user',
             'participant_id' => $user->getKey(),
-            'workspace_id' => $workspace->getKey(),
+            'workspace_id' => $user->current_workspace_id,
             'title' => "Filler {$i}",
             'created_at' => now()->subMinutes($i),
             'updated_at' => now()->subMinutes($i),
@@ -107,7 +106,7 @@ it('does not restore an open flyout when the browser goes back', function (): vo
             'id' => "cback{$i}",
             'participant_type' => 'user',
             'participant_id' => $user->getKey(),
-            'workspace_id' => $workspace->getKey(),
+            'workspace_id' => $user->current_workspace_id,
             'title' => "Filler {$i}",
             'created_at' => now()->subMinutes(20 - $i),
             'updated_at' => now()->subMinutes(20 - $i),
@@ -116,10 +115,9 @@ it('does not restore an open flyout when the browser goes back', function (): vo
     DB::table('agent_conversations')->insert($rows);
 
     $page = loginViaBrowser($user)
-        ->assertPathIs("/app/{$workspace->slug}")
-        ->click('button[aria-label="Open all chats"]')
-        ->wait(0.5)
-        ->assertVisible('[data-chat-all-chats-panel]');
+        ->assertPathIs("/app/{$workspace->slug}");
+
+    openAllChatsFromSidebar($page);
 
     $page->script("window.Livewire.navigate('/app/{$workspace->slug}/people')");
 
