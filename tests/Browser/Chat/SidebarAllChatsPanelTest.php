@@ -12,23 +12,40 @@ mutates(ChatAllChatsPanel::class);
 function openAllChatsFromSidebar(AwaitableWebpage $page): void
 {
     $page->script(<<<'JS'
-        (() => {
+        return (async () => {
             window.Alpine?.store('sidebar')?.open();
-            const btn = document.querySelector('button[aria-label="Open all chats"]');
-            if (! btn) {
-                throw new Error('Open all chats trigger missing.');
+
+            const deadline = Date.now() + 20_000;
+            let dispatched = false;
+
+            while (Date.now() < deadline) {
+                const btn = document.querySelector('button[aria-label="Open all chats"]');
+                if (btn && window.Livewire?.dispatch) {
+                    btn.scrollIntoView({ block: 'center' });
+                    window.Livewire.dispatch('chat:open-all-chats');
+                    dispatched = true;
+                    break;
+                }
+                await new Promise((resolve) => setTimeout(resolve, 50));
             }
-            btn.scrollIntoView({ block: 'center' });
-            if (! window.Livewire?.dispatch) {
-                throw new Error('Livewire is not available.');
+
+            if (! dispatched) {
+                throw new Error('Open all chats trigger or Livewire was not ready.');
             }
-            window.Livewire.dispatch('chat:open-all-chats');
-            return true;
+
+            while (Date.now() < deadline) {
+                const panel = document.querySelector('[data-chat-all-chats-panel]');
+                if (panel && getComputedStyle(panel).display !== 'none') {
+                    return true;
+                }
+                await new Promise((resolve) => setTimeout(resolve, 50));
+            }
+
+            throw new Error('All chats panel did not open.');
         })();
     JS);
 
-    $page->wait(0.5)
-        ->assertVisible('[data-chat-all-chats-panel]');
+    $page->assertVisible('[data-chat-all-chats-panel]');
 }
 
 it('opens the all-chats flyout from the sidebar trigger and lists chats', function (): void {
