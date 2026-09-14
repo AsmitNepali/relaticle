@@ -37,6 +37,7 @@ use Relaticle\EmailIntegration\Support\QueuedSendNotifier;
 trait HasEmailComposeActions
 {
     use AssertsAllowedEmailRecipients;
+    use PreparesForwardAttachmentSendData;
     use RedirectsToGrantSend;
 
     /**
@@ -97,7 +98,11 @@ trait HasEmailComposeActions
             ))
             ->schema($this->replyFormSchema())
             ->action(function (array $data, array $arguments): void {
-                $this->submitReplyForward($data, $arguments['mode'] ?? 'reply');
+                $this->submitReplyForward(
+                    $data,
+                    $arguments['mode'] ?? 'reply',
+                    isset($arguments['emailId']) ? (string) $arguments['emailId'] : null,
+                );
             });
     }
 
@@ -167,7 +172,7 @@ trait HasEmailComposeActions
     /**
      * @param  array<string, mixed>  $data
      */
-    private function submitReplyForward(array $data, string $mode): void
+    private function submitReplyForward(array $data, string $mode, ?string $forwardSourceEmailId = null): void
     {
         $source = match ($mode) {
             'reply_all' => EmailCreationSource::REPLY_ALL,
@@ -204,6 +209,20 @@ trait HasEmailComposeActions
             $threadSource,
         )) {
             return;
+        }
+
+        if ($mode === 'forward' && $forwardSourceEmailId !== null) {
+            $merged = $this->mergeForwardAttachmentsIntoSendData(
+                $this->getAuthenticatedUser(),
+                $this->resolveComposableEmail($forwardSourceEmailId),
+                $data,
+            );
+
+            if ($merged === null) {
+                return;
+            }
+
+            $data = $merged;
         }
 
         $record = $this->getCrmRecord();
@@ -322,6 +341,7 @@ trait HasEmailComposeActions
      *     batch_id: null,
      *     scheduled_for: \DateTimeInterface|null,
      *     priority: EmailPriority,
+     *     attachment_attributes: array<string, array{is_inline?: bool, content_id?: ?string}>,
      * }
      */
     private function buildSendData(array $data, EmailCreationSource $source): array
@@ -357,6 +377,7 @@ trait HasEmailComposeActions
             'priority' => EmailPriority::PRIORITY,
             'attachments' => $data['attachments'] ?? [],
             'attachment_file_names' => $data['attachment_file_names'] ?? [],
+            'attachment_attributes' => $data['attachment_attributes'] ?? [],
         ];
     }
 

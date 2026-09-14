@@ -27,10 +27,11 @@ use Relaticle\EmailIntegration\Models\Email;
 use Relaticle\EmailIntegration\Models\EmailAttachment;
 use Relaticle\EmailIntegration\Models\EmailBody;
 use Relaticle\EmailIntegration\Models\EmailParticipant;
+use Relaticle\EmailIntegration\Services\ForwardAttachmentCopyService;
 use Relaticle\EmailIntegration\Support\QueuedSendNotifier;
 use Tests\Helpers\AllowedComposerRecipient;
 
-mutates(EmailsRelationManager::class, EmailInboxPage::class, EmailComposer::class, Email::class, HasEmailComposeActions::class, RedirectsToGrantSend::class, ConnectedAccount::class, QueuedSendNotifier::class, SendEmailAction::class, SaveEmailDraftAction::class);
+mutates(EmailsRelationManager::class, EmailInboxPage::class, EmailComposer::class, Email::class, HasEmailComposeActions::class, RedirectsToGrantSend::class, ConnectedAccount::class, QueuedSendNotifier::class, SendEmailAction::class, SaveEmailDraftAction::class, ForwardAttachmentCopyService::class);
 
 beforeEach(function (): void {
     $this->user = User::factory()->withWorkspace()->create();
@@ -450,6 +451,69 @@ it('includes the original plain-text body when forwarding from the inbox', funct
         ->toContain('FYI')
         ->toContain('Please review the invoice by Friday.')
         ->toContain('---------- Forwarded message ----------');
+});
+
+it('includes the original attachments when forwarding from the relation manager modal', function (): void {
+    Storage::fake(EmailAttachment::DISK);
+
+    $attachment = inboundStoredAttachment($this->inboundEmail, 'contract.pdf', 'signed-contract');
+
+    livewire(EmailsRelationManager::class, [
+        'ownerRecord' => $this->person,
+        'pageClass' => ViewPeople::class,
+    ])
+        ->callAction(
+            'replyForwardEmail',
+            data: [
+                'connected_account_id' => $this->account->id,
+                'to' => ['forward-to@example.com'],
+                'cc' => [],
+                'bcc' => [],
+                'subject' => 'Fwd: Original Subject',
+                'body_html' => '<p>See attached contract</p>',
+            ],
+            arguments: ['emailId' => $this->inboundEmail->id, 'mode' => 'forward'],
+        );
+
+    $forward = Email::query()
+        ->where('direction', EmailDirection::OUTBOUND)
+        ->where('creation_source', EmailCreationSource::FORWARD)
+        ->sole();
+
+    $sentAttachment = $forward->attachments->sole();
+
+    expect($sentAttachment->filename)->toBe('contract.pdf')
+        ->and($sentAttachment->storage_path)->not->toBe($attachment->storage_path);
+
+    Storage::disk(EmailAttachment::DISK)->assertExists((string) $sentAttachment->storage_path);
+    expect(Storage::disk(EmailAttachment::DISK)->get((string) $sentAttachment->storage_path))->toBe('signed-contract');
+});
+
+it('includes the original attachments when forwarding from the inbox modal', function (): void {
+    Storage::fake(EmailAttachment::DISK);
+
+    inboundStoredAttachment($this->inboundEmail, 'contract.pdf', 'signed-contract');
+
+    livewire(EmailInboxPage::class)
+        ->callAction(
+            'replyForwardEmail',
+            data: [
+                'connected_account_id' => $this->account->id,
+                'to' => ['forward-to@example.com'],
+                'cc' => [],
+                'bcc' => [],
+                'subject' => 'Fwd: Original Subject',
+                'body_html' => '<p>See attached contract</p>',
+            ],
+            arguments: ['emailId' => $this->inboundEmail->id, 'mode' => 'forward'],
+        );
+
+    $forward = Email::query()
+        ->where('direction', EmailDirection::OUTBOUND)
+        ->where('creation_source', EmailCreationSource::FORWARD)
+        ->sole();
+
+    expect($forward->attachments->sole()->filename)->toBe('contract.pdf');
 });
 
 it('a forward saved as a draft keeps its source without threading against it', function (): void {

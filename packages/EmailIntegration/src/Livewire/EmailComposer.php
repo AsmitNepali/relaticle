@@ -28,7 +28,6 @@ use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Number;
-use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
@@ -57,15 +56,14 @@ use Relaticle\EmailIntegration\Models\EmailSignature;
 use Relaticle\EmailIntegration\Models\EmailTemplate;
 use Relaticle\EmailIntegration\Models\Scopes\VisibleEmailScope;
 use Relaticle\EmailIntegration\Services\AllowedRecipientService;
-use Relaticle\EmailIntegration\Services\Contracts\MailServiceFactoryInterface;
 use Relaticle\EmailIntegration\Services\EmailTemplateRenderService;
+use Relaticle\EmailIntegration\Services\ForwardAttachmentCopyService;
 use Relaticle\EmailIntegration\Services\MassSendRecipientResolver;
 use Relaticle\EmailIntegration\Services\PrivacyService;
 use Relaticle\EmailIntegration\Services\RecipientSuggestionService;
 use Relaticle\EmailIntegration\Support\MailboxOAuthWorkspace;
 use Relaticle\EmailIntegration\Support\PersonRecipientFormatter;
 use Relaticle\EmailIntegration\Support\QueuedSendNotifier;
-use Throwable;
 
 /**
  * @property-read Action $createSignatureAction
@@ -77,19 +75,6 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
     use InteractsWithActions;
     use InteractsWithSchemas;
     use WithFileUploads;
-
-    /**
-     * Per-file cap, matching the Filament compose modal this composer replaced
-     * (`FileUpload::maxSize(10240)`).
-     */
-    private const int MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
-
-    /**
-     * Whole-message cap. Attachment bytes are base64-encoded into the outbound
-     * message (~33% overhead), and Gmail rejects the message past ~25 MB encoded.
-     * By that point the email is already queued and only fails at send time.
-     */
-    private const int MAX_ATTACHMENTS_TOTAL_BYTES = 15 * 1024 * 1024;
 
     /**
      * Where this instance renders. `floating` is the bottom-right window that
@@ -1043,7 +1028,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
 
             $size = $file->getSize();
 
-            if ($size > self::MAX_ATTACHMENT_BYTES || $total + $size > self::MAX_ATTACHMENTS_TOTAL_BYTES) {
+            if ($size > ForwardAttachmentCopyService::MAX_ATTACHMENT_BYTES || $total + $size > ForwardAttachmentCopyService::MAX_ATTACHMENTS_TOTAL_BYTES) {
                 $rejected[] = $file->getClientOriginalName();
                 $file->delete();
 
@@ -1065,8 +1050,8 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
             ->title(__('filament/emails/composer.notifications.attachment_too_large.title'))
             ->body(__('filament/emails/composer.notifications.attachment_too_large.body', [
                 'files' => implode(', ', $rejected),
-                'max' => Number::fileSize(self::MAX_ATTACHMENT_BYTES),
-                'total' => Number::fileSize(self::MAX_ATTACHMENTS_TOTAL_BYTES),
+                'max' => Number::fileSize(ForwardAttachmentCopyService::MAX_ATTACHMENT_BYTES),
+                'total' => Number::fileSize(ForwardAttachmentCopyService::MAX_ATTACHMENTS_TOTAL_BYTES),
             ]))
             ->send();
     }
@@ -1776,29 +1761,16 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
      */
     private function loadForwardedAttachments(Email $email): void
     {
-        /** @var list<array{id: string, filename: string, size: int}> $kept */
-        $kept = [];
-        $rejected = [];
-        $total = 0;
+        [$forwardable, $rejected] = resolve(ForwardAttachmentCopyService::class)
+            ->forwardableNonInlineAttachments($email);
 
-        foreach ($email->downloadAttachments() as $attachment) {
-            $size = (int) $attachment->size;
-
-            if ($size > self::MAX_ATTACHMENT_BYTES || $total + $size > self::MAX_ATTACHMENTS_TOTAL_BYTES) {
-                $rejected[] = (string) $attachment->filename;
-
-                continue;
-            }
-
-            $total += $size;
-            $kept[] = [
+        $this->savedAttachments = $forwardable
+            ->map(fn (EmailAttachment $attachment): array => [
                 'id' => (string) $attachment->getKey(),
                 'filename' => (string) $attachment->filename,
-                'size' => $size,
-            ];
-        }
-
-        $this->savedAttachments = $kept;
+                'size' => (int) $attachment->size,
+            ])
+            ->all();
 
         if ($rejected === []) {
             return;
@@ -1809,8 +1781,8 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
             ->title(__('filament/emails/composer.notifications.attachment_too_large.title'))
             ->body(__('filament/emails/composer.notifications.attachment_too_large.body', [
                 'files' => implode(', ', $rejected),
-                'max' => Number::fileSize(self::MAX_ATTACHMENT_BYTES),
-                'total' => Number::fileSize(self::MAX_ATTACHMENTS_TOTAL_BYTES),
+                'max' => Number::fileSize(ForwardAttachmentCopyService::MAX_ATTACHMENT_BYTES),
+                'total' => Number::fileSize(ForwardAttachmentCopyService::MAX_ATTACHMENTS_TOTAL_BYTES),
             ]))
             ->send();
     }
@@ -1834,14 +1806,11 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
             return [[], [], [], []];
         }
 
-        $attachments = EmailAttachment::query()
-            ->with('email.connectedAccount')
-            ->where('email_id', $source->getKey())
-            ->where('is_inline', false)
-            ->whereIn('id', array_column($this->savedAttachments, 'id'))
-            ->get();
-
-        return $this->copyAttachmentRecords($attachments);
+        return resolve(ForwardAttachmentCopyService::class)->copyNonInlineByIds(
+            $this->authUser(),
+            $source,
+            array_column($this->savedAttachments, 'id'),
+        );
     }
 
     /**
@@ -1875,13 +1844,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
             return [[], [], [], []];
         }
 
-        $attachments = EmailAttachment::query()
-            ->with('email.connectedAccount')
-            ->where('email_id', $source->getKey())
-            ->where('is_inline', true)
-            ->get();
-
-        return $this->copyAttachmentRecords($attachments, inline: true);
+        return resolve(ForwardAttachmentCopyService::class)->copyInlineFromSource($this->authUser(), $source);
     }
 
     /**
@@ -1912,32 +1875,11 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
      */
     private function copyAttachmentRecords(iterable $attachments, bool $inline = false): array
     {
-        $paths = [];
-        $names = [];
-        $attributes = [];
-        $unavailable = [];
-
-        foreach ($attachments as $attachment) {
-            $copy = $this->copyAttachmentFile($attachment);
-
-            if ($copy === null) {
-                $unavailable[] = $attachment;
-
-                continue;
-            }
-
-            $paths[] = $copy;
-            $names[$copy] = (string) $attachment->filename;
-
-            if ($inline || $attachment->is_inline) {
-                $attributes[$copy] = [
-                    'is_inline' => true,
-                    'content_id' => $attachment->content_id,
-                ];
-            }
-        }
-
-        return [$paths, $names, $attributes, $unavailable];
+        return resolve(ForwardAttachmentCopyService::class)->copyRecords(
+            $this->authUser(),
+            $attachments,
+            $inline,
+        );
     }
 
     /**
@@ -1968,98 +1910,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
      */
     private function deleteCopiedAttachmentFiles(array $paths): void
     {
-        $disk = Storage::disk(EmailAttachment::DISK);
-
-        foreach ($paths as $path) {
-            $disk->delete($path);
-        }
-    }
-
-    private function copyAttachmentFile(EmailAttachment $attachment): ?string
-    {
-        $disk = Storage::disk(EmailAttachment::DISK);
-        $extension = pathinfo((string) $attachment->filename, PATHINFO_EXTENSION);
-
-        if ($extension === '' && is_string($attachment->storage_path)) {
-            $extension = pathinfo($attachment->storage_path, PATHINFO_EXTENSION);
-        }
-
-        $copy = 'email-attachments/'.Str::ulid().($extension !== '' ? '.'.$extension : '');
-        $source = $attachment->storage_path;
-
-        if (is_string($source) && $source !== '' && $disk->exists($source)) {
-            $disk->copy($source, $copy);
-
-            return $copy;
-        }
-
-        $bytes = $this->downloadProviderAttachment($attachment);
-
-        if ($bytes === null) {
-            return null;
-        }
-
-        $disk->put($copy, $bytes);
-
-        return $copy;
-    }
-
-    private function downloadProviderAttachment(EmailAttachment $attachment): ?string
-    {
-        $email = $attachment->email;
-        $providerAttachmentId = $attachment->provider_attachment_id;
-
-        if (! $email instanceof Email || blank($providerAttachmentId)) {
-            return null;
-        }
-
-        $source = $this->providerDownloadSource($email);
-
-        if (! $source instanceof Email || blank($source->provider_message_id)) {
-            return null;
-        }
-
-        $account = $source->connectedAccount;
-
-        if (! $account instanceof ConnectedAccount) {
-            return null;
-        }
-
-        try {
-            return resolve(MailServiceFactoryInterface::class)
-                ->make($account)
-                ->downloadAttachment($source->provider_message_id, $providerAttachmentId);
-        } catch (Throwable $exception) {
-            report($exception);
-
-            return null;
-        }
-    }
-
-    /**
-     * Provider downloads need the original message id and mailbox. A draft
-     * placeholder copied from a forward has neither; the source email still does.
-     */
-    private function providerDownloadSource(Email $email): ?Email
-    {
-        if (filled($email->provider_message_id)) {
-            return $email;
-        }
-
-        if ($email->status !== EmailStatus::DRAFT || blank($email->in_reply_to)) {
-            return null;
-        }
-
-        $user = $this->authUser();
-
-        $source = Email::query()
-            ->with('connectedAccount')
-            ->where('workspace_id', $user->current_workspace_id)
-            ->where('rfc_message_id', $email->in_reply_to)
-            ->withGlobalScope('visible', new VisibleEmailScope($user))
-            ->first();
-
-        return $source instanceof Email && $user->can('viewBody', $source) ? $source : null;
+        resolve(ForwardAttachmentCopyService::class)->deleteCopiedFiles($paths);
     }
 
     /**
