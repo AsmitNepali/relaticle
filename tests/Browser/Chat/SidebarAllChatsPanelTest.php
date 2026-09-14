@@ -19,7 +19,10 @@ function openAllChatsFromSidebar(AwaitableWebpage $page): void
                 throw new Error('Open all chats trigger missing.');
             }
             btn.scrollIntoView({ block: 'center' });
-            btn.click();
+            if (! window.Livewire?.dispatch) {
+                throw new Error('Livewire is not available.');
+            }
+            window.Livewire.dispatch('chat:open-all-chats');
             return true;
         })();
     JS);
