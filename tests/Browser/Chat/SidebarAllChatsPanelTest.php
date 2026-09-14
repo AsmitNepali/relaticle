@@ -12,7 +12,7 @@ mutates(ChatAllChatsPanel::class);
 function openAllChatsFromSidebar(AwaitableWebpage $page): void
 {
     $page->script(<<<'JS'
-        return (async () => {
+        async () => {
             window.Alpine?.store('sidebar')?.open();
 
             const deadline = Date.now() + 20_000;
@@ -42,7 +42,7 @@ function openAllChatsFromSidebar(AwaitableWebpage $page): void
             }
 
             throw new Error('All chats panel did not open.');
-        })();
+        }
     JS);
 
     $page->assertVisible('[data-chat-all-chats-panel]');
