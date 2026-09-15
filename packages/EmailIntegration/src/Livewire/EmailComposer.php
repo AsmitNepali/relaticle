@@ -731,10 +731,6 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
 
     public function minimize(): void
     {
-        if ($this->persistDraft()) {
-            $this->notifyDraftSaved();
-        }
-
         $this->isMinimized = true;
     }
 
@@ -750,9 +746,7 @@ final class EmailComposer extends Component implements HasActions, HasSchemas
     }
 
     /**
-     * Put the draft away and keep it. Used when the composer is dismissed by
-     * something other than the user rejecting it: minimizing, or the reader moving
-     * to another message, where losing what was typed would be a surprise.
+     * Put the draft away and keep it. Close and inline dismiss persist; minimize does not.
      */
     public function close(): void
     {
