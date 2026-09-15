@@ -29,19 +29,19 @@ final class MailboxHistoryImportCompletedNotification extends Notification imple
 
     public function toMail(object $notifiable): MailMessage
     {
-        $team = $this->account->team;
+        $workspace = $this->account->workspace;
 
         return (new MailMessage)
             ->subject(__('mail.mailbox_import_complete.subject', [
-                'team' => $team->name,
+                'team' => $workspace->name,
             ]))
             ->markdown('mail.notifications.mailbox-import-complete', [
                 'greetingName' => $notifiable instanceof User ? $notifiable->name : '',
                 'connectedEmail' => $this->account->email_address,
-                'teamName' => $team->name,
+                'teamName' => $workspace->name,
                 'emailCount' => $this->account->initial_sync_imported,
                 'calendarCount' => $this->account->initial_calendar_sync_imported,
-                'workspaceUrl' => Dashboard::getUrl(['tenant' => $team]),
+                'workspaceUrl' => Dashboard::getUrl(['tenant' => $workspace]),
             ]);
     }
 
@@ -54,7 +54,7 @@ final class MailboxHistoryImportCompletedNotification extends Notification imple
             ->title(__('filament/notifications/mailbox-import-complete.title'))
             ->body(__('filament/notifications/mailbox-import-complete.body', [
                 'email' => $this->account->email_address,
-                'team' => $this->account->team->name,
+                'team' => $this->account->workspace->name,
                 'emails' => $this->account->initial_sync_imported,
                 'events' => $this->account->initial_calendar_sync_imported,
             ]))
