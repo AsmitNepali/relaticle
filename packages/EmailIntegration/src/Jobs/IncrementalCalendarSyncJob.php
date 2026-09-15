@@ -52,7 +52,14 @@ final class IncrementalCalendarSyncJob implements ShouldBeUnique, ShouldQueue
             return;
         }
 
+        if (MailboxSyncTracker::isCalendarSyncing($account)) {
+            $this->release(30);
+
+            return;
+        }
+
         MailboxSyncTracker::markCalendarStarted($account);
+        $calendarSyncGeneration = MailboxSyncTracker::currentCalendarSyncGeneration($account);
 
         $service = $serviceFactory->make($account);
 
@@ -83,7 +90,7 @@ final class IncrementalCalendarSyncJob implements ShouldBeUnique, ShouldQueue
         $reconcileAfter = $this->reconcileAfter;
 
         $jobs = array_map(
-            fn (CalendarEventData $event): StoreMeetingJob => new StoreMeetingJob($account, $event),
+            fn (CalendarEventData $event): StoreMeetingJob => new StoreMeetingJob($account, $event, $calendarSyncGeneration),
             $result->events,
         );
 
