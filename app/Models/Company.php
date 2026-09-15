@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\CreationSource;
-use App\Models\Concerns\BelongsToTeamCreator;
+use App\Models\Concerns\BelongsToWorkspaceCreator;
 use App\Models\Concerns\HasActivityTimeline;
 use App\Models\Concerns\HasCreator;
 use App\Models\Concerns\HasNotes;
-use App\Models\Concerns\HasTeam;
+use App\Models\Concerns\HasWorkspace;
 use App\Observers\CompanyObserver;
 use Carbon\CarbonImmutable;
 use Database\Factories\CompanyFactory;
@@ -53,7 +53,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 ])]
 final class Company extends Model implements HasAvatar, HasCustomFields, HasMedia, HasTimeline
 {
-    use BelongsToTeamCreator;
+    use BelongsToWorkspaceCreator;
     use HasActivityTimeline;
     use HasCreator;
     use HasEmails;
@@ -63,8 +63,8 @@ final class Company extends Model implements HasAvatar, HasCustomFields, HasMedi
 
     use HasMeetings;
     use HasNotes;
-    use HasTeam;
     use HasUlids;
+    use HasWorkspace;
     use InteractsWithMedia;
     use LogsActivity;
     use SoftDeletes;
@@ -113,7 +113,7 @@ final class Company extends Model implements HasAvatar, HasCustomFields, HasMedi
     }
 
     /**
-     * Team member responsible for managing the company account
+     * Workspace member responsible for managing the company account
      *
      * @return BelongsTo<User, $this>
      */
@@ -153,7 +153,7 @@ final class Company extends Model implements HasAvatar, HasCustomFields, HasMedi
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->logExcept([
-                'id', 'team_id', 'creator_id', 'creation_source', 'custom_fields',
+                'id', 'workspace_id', 'creator_id', 'creation_source', 'custom_fields',
                 'created_at', 'updated_at', 'deleted_at', 'account_owner_id',
                 'last_email_at', 'last_interaction_at', 'email_count', 'inbound_email_count',
                 'outbound_email_count', 'meeting_count', 'last_meeting_at',

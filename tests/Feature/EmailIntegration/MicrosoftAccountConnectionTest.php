@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use App\Providers\AppServiceProvider;
 use Illuminate\Support\Facades\Bus;
 use Laravel\Socialite\Facades\Socialite;
@@ -34,7 +34,7 @@ it('resolves the azure socialite driver', function (): void {
 it('stores an azure connected account and flips calendar capability when Graph calendar scope is granted', function (): void {
     Bus::fake();
 
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
 
     $social = new SocialiteUser;
@@ -65,7 +65,7 @@ it('stores an azure connected account and flips calendar capability when Graph c
     expect($account->hasCalendar())->toBeTrue()
         ->and($account->capabilities['email'])->toBeTrue()
         ->and($account->hasSend())->toBeTrue()
-        ->and($user->currentTeam->fresh()->contact_creation_mode)->toBe(ContactCreationMode::Selective);
+        ->and($user->currentWorkspace->fresh()->contact_creation_mode)->toBe(ContactCreationMode::Selective);
 
     Bus::assertDispatched(InitialCalendarSyncJob::class, fn (InitialCalendarSyncJob $job): bool => $job->connectedAccount->is($account));
     Bus::assertDispatched(InitialEmailSyncJob::class, fn (InitialEmailSyncJob $job): bool => $job->connectedAccount->is($account));
@@ -75,7 +75,7 @@ it('stores an azure connected account and flips calendar capability when Graph c
 it('flips calendar capability when Graph grants Calendars.ReadWrite without Calendars.Read', function (): void {
     Bus::fake();
 
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
 
     $social = new SocialiteUser;
@@ -107,10 +107,48 @@ it('flips calendar capability when Graph grants Calendars.ReadWrite without Cale
     Bus::assertDispatched(InitialCalendarSyncJob::class, fn (InitialCalendarSyncJob $job): bool => $job->connectedAccount->is($account));
 });
 
+it('flips calendar and send capabilities when Graph returns unqualified scope names', function (): void {
+    Bus::fake();
+
+    $user = User::factory()->withWorkspace()->create();
+    $this->actingAs($user);
+
+    $social = new SocialiteUser;
+    $social->id = 'azure-unqualified';
+    $social->email = 'ms-unqualified@example.com';
+    $social->name = 'MS Demo';
+    $social->token = 'access-token';
+    $social->refreshToken = 'refresh-token';
+    $social->expiresIn = 3600;
+    $social->approvedScopes = [
+        'Mail.Read',
+        'Mail.Send',
+        'Calendars.ReadWrite',
+        'offline_access',
+    ];
+
+    Socialite::fake('azure', $social);
+    bindMailboxOAuthWorkspace($user);
+
+    $this->get(route('email-accounts.callback', ['provider' => 'azure']))
+        ->assertRedirect();
+
+    $account = ConnectedAccount::query()
+        ->where('email_address', 'ms-unqualified@example.com')
+        ->where('provider', EmailProvider::AZURE)
+        ->firstOrFail();
+
+    expect($account->hasCalendar())->toBeTrue()
+        ->and($account->hasSend())->toBeTrue()
+        ->and($account->hasEmail())->toBeTrue();
+
+    Bus::assertDispatched(InitialCalendarSyncJob::class, fn (InitialCalendarSyncJob $job): bool => $job->connectedAccount->is($account));
+});
+
 it('records send as missing when Graph does not grant Mail.Send', function (): void {
     Bus::fake();
 
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
 
     $social = new SocialiteUser;
@@ -144,7 +182,7 @@ it('records send as missing when Graph does not grant Mail.Send', function (): v
 it('preserves the stored refresh token when a reconnect returns none', function (): void {
     Bus::fake();
 
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
 
     $connect = function (?string $refreshToken) use ($user): ConnectedAccount {
@@ -180,12 +218,12 @@ it('preserves the stored refresh token when a reconnect returns none', function 
 it('dispatches history import when a disconnected account is reconnected', function (): void {
     Bus::fake();
 
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
 
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->trashed()->create([
         'user_id' => $user->getKey(),
-        'team_id' => $user->current_team_id,
+        'workspace_id' => $user->current_workspace_id,
         'email_address' => 'again@example.com',
         'provider' => EmailProvider::GMAIL,
         'provider_account_id' => 'gmail-reconnect-import',
@@ -216,10 +254,10 @@ it('dispatches history import when a disconnected account is reconnected', funct
 it('connects the mailbox to the workspace where authorization started after the current workspace changes', function (): void {
     Bus::fake();
 
-    $user = User::factory()->withTeam()->create();
-    $initiatingTeam = $user->currentTeam;
-    $otherTeam = Team::factory()->create(['user_id' => $user->getKey()]);
-    $user->teams()->attach($otherTeam, ['role' => 'admin']);
+    $user = User::factory()->withWorkspace()->create();
+    $initiatingTeam = $user->currentWorkspace;
+    $otherTeam = Workspace::factory()->create(['user_id' => $user->getKey()]);
+    $user->workspaces()->attach($otherTeam, ['role' => 'admin']);
 
     $this->actingAs($user);
 
@@ -230,8 +268,8 @@ it('connects the mailbox to the workspace where authorization started after the 
     $this->get(MailboxOAuthWorkspace::redirectUrl('gmail', $initiatingTeam))
         ->assertRedirect();
 
-    $user->forceFill(['current_team_id' => $otherTeam->getKey()])->save();
-    $user->unsetRelation('currentTeam');
+    $user->forceFill(['current_workspace_id' => $otherTeam->getKey()])->save();
+    $user->unsetRelation('currentWorkspace');
 
     $social = new SocialiteUser;
     $social->id = 'gmail-workspace-bind';
@@ -254,22 +292,22 @@ it('connects the mailbox to the workspace where authorization started after the 
 
     $this->assertDatabaseHas(ConnectedAccount::class, [
         'email_address' => 'bind@example.com',
-        'team_id' => $initiatingTeam->getKey(),
+        'workspace_id' => $initiatingTeam->getKey(),
     ]);
     $this->assertDatabaseMissing(ConnectedAccount::class, [
         'email_address' => 'bind@example.com',
-        'team_id' => $otherTeam->getKey(),
+        'workspace_id' => $otherTeam->getKey(),
     ]);
 });
 
 it('does not connect a mailbox when the user left the authorizing workspace', function (): void {
     Bus::fake();
 
-    $user = User::factory()->withTeam()->create();
-    $foreignTeam = Team::factory()->create();
-    $user->teams()->attach($foreignTeam, ['role' => 'admin']);
-    $user->forceFill(['current_team_id' => $foreignTeam->getKey()])->save();
-    $user->unsetRelation('currentTeam');
+    $user = User::factory()->withWorkspace()->create();
+    $foreignTeam = Workspace::factory()->create();
+    $user->workspaces()->attach($foreignTeam, ['role' => 'admin']);
+    $user->forceFill(['current_workspace_id' => $foreignTeam->getKey()])->save();
+    $user->unsetRelation('currentWorkspace');
 
     $this->actingAs($user);
 
@@ -280,10 +318,10 @@ it('does not connect a mailbox when the user left the authorizing workspace', fu
     $this->get(MailboxOAuthWorkspace::redirectUrl('gmail', $foreignTeam))
         ->assertRedirect();
 
-    $user->teams()->detach($foreignTeam);
-    $user->forceFill(['current_team_id' => $user->ownedTeams()->first()?->getKey()])->save();
-    $user->unsetRelation('currentTeam');
-    $user->unsetRelation('teams');
+    $user->workspaces()->detach($foreignTeam);
+    $user->forceFill(['current_workspace_id' => $user->ownedWorkspaces()->first()?->getKey()])->save();
+    $user->unsetRelation('currentWorkspace');
+    $user->unsetRelation('workspaces');
 
     $social = new SocialiteUser;
     $social->id = 'gmail-left-workspace';
@@ -311,10 +349,10 @@ it('does not connect a mailbox when the user left the authorizing workspace', fu
 it('stores a separate connected account when the same mailbox is connected in a second workspace', function (): void {
     Bus::fake();
 
-    $user = User::factory()->withTeam()->create();
-    $firstTeam = $user->currentTeam;
-    $secondTeam = Team::factory()->create(['user_id' => $user->getKey()]);
-    $user->teams()->attach($secondTeam, ['role' => 'admin']);
+    $user = User::factory()->withWorkspace()->create();
+    $firstTeam = $user->currentWorkspace;
+    $secondTeam = Workspace::factory()->create(['user_id' => $user->getKey()]);
+    $user->workspaces()->attach($secondTeam, ['role' => 'admin']);
 
     $connect = function () use ($user): void {
         $social = new SocialiteUser;
@@ -339,8 +377,8 @@ it('stores a separate connected account when the same mailbox is connected in a 
 
     $connect();
 
-    $user->forceFill(['current_team_id' => $secondTeam->getKey()])->save();
-    $user->unsetRelation('currentTeam');
+    $user->forceFill(['current_workspace_id' => $secondTeam->getKey()])->save();
+    $user->unsetRelation('currentWorkspace');
     $connect();
 
     $accounts = ConnectedAccount::query()
@@ -349,7 +387,7 @@ it('stores a separate connected account when the same mailbox is connected in a 
         ->get();
 
     expect($accounts)->toHaveCount(2)
-        ->and($accounts->pluck('team_id')->all())->toEqualCanonicalizing([
+        ->and($accounts->pluck('workspace_id')->all())->toEqualCanonicalizing([
             $firstTeam->getKey(),
             $secondTeam->getKey(),
         ]);
@@ -358,13 +396,13 @@ it('stores a separate connected account when the same mailbox is connected in a 
 it('reconnects a previously default mailbox without violating the live default constraint', function (): void {
     Bus::fake();
 
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
-    $team = $user->currentTeam;
+    $team = $user->currentWorkspace;
 
     $default = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->default()->create([
         'user_id' => $user->getKey(),
-        'team_id' => $team->getKey(),
+        'workspace_id' => $team->getKey(),
         'email_address' => 'default@example.com',
         'provider' => EmailProvider::GMAIL,
         'provider_account_id' => 'gmail-default-reconnect',
@@ -372,7 +410,7 @@ it('reconnects a previously default mailbox without violating the live default c
 
     $successor = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
         'user_id' => $user->getKey(),
-        'team_id' => $team->getKey(),
+        'workspace_id' => $team->getKey(),
     ]));
 
     app(DisconnectConnectedAccountAction::class)->execute($default);
@@ -404,7 +442,7 @@ it('reconnects a previously default mailbox without violating the live default c
 it('makes the first connected account the default and leaves later connections non-default', function (): void {
     Bus::fake();
 
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
 
     $connect = function (string $email) use ($user): ConnectedAccount {

@@ -424,7 +424,20 @@ final readonly class GmailService implements MailServiceInterface
 
     private function formatAddress(string $name, string $email): string
     {
+        $email = $this->sanitizeMailbox($email);
+        $name = $this->sanitizeDisplayName($name);
+
         return filled($name) ? "\"$name\" <$email>" : $email;
+    }
+
+    private function sanitizeDisplayName(string $name): string
+    {
+        return str_replace(['"', '\\', "\r", "\n"], '', $name);
+    }
+
+    private function sanitizeMailbox(string $email): string
+    {
+        return str_replace(["\r", "\n"], '', $email);
     }
 
     /**

@@ -53,7 +53,7 @@ it('soft-deletes existing meeting when it is cancelled in the provider calendar'
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create());
     $existing = Meeting::factory()->create([
         'connected_account_id' => $account->getKey(),
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'provider_event_id' => 'evt-cancelled',
     ]);
 
@@ -69,13 +69,13 @@ it('soft-deletes only one occurrence when a single recurring instance is cancell
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create());
     $first = Meeting::factory()->create([
         'connected_account_id' => $account->getKey(),
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'provider_event_id' => 'series_20250908',
         'provider_recurring_event_id' => 'series-master',
     ]);
     $second = Meeting::factory()->create([
         'connected_account_id' => $account->getKey(),
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'provider_event_id' => 'series_20250909',
         'provider_recurring_event_id' => 'series-master',
     ]);
@@ -94,13 +94,13 @@ it('soft-deletes only one occurrence when a single recurring instance becomes pr
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create());
     $first = Meeting::factory()->create([
         'connected_account_id' => $account->getKey(),
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'provider_event_id' => 'series_20250908',
         'provider_recurring_event_id' => 'series-master',
     ]);
     $second = Meeting::factory()->create([
         'connected_account_id' => $account->getKey(),
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'provider_event_id' => 'series_20250909',
         'provider_recurring_event_id' => 'series-master',
     ]);
@@ -119,13 +119,13 @@ it('soft-deletes all meetings in a recurring series when the series master is ca
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create());
     $first = Meeting::factory()->create([
         'connected_account_id' => $account->getKey(),
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'provider_event_id' => 'series_20250908',
         'provider_recurring_event_id' => 'series-master',
     ]);
     $second = Meeting::factory()->create([
         'connected_account_id' => $account->getKey(),
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'provider_event_id' => 'series_20250909',
         'provider_recurring_event_id' => 'series-master',
     ]);
@@ -238,7 +238,7 @@ it('soft-deletes existing meeting when it becomes private', function (): void {
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create());
     $existing = Meeting::factory()->create([
         'connected_account_id' => $account->getKey(),
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'provider_event_id' => 'evt-xyz',
     ]);
 

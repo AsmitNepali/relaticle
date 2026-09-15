@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Filament\Pages;
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
@@ -38,6 +38,7 @@ use Relaticle\EmailIntegration\Enums\EmailStatus;
 use Relaticle\EmailIntegration\Filament\Concerns\AssertsAllowedEmailRecipients;
 use Relaticle\EmailIntegration\Filament\Concerns\HasEmailFeatureFlag;
 use Relaticle\EmailIntegration\Filament\Concerns\HasEmailReaderActions;
+use Relaticle\EmailIntegration\Filament\Concerns\PreparesForwardAttachmentSendData;
 use Relaticle\EmailIntegration\Filament\Concerns\RedirectsToGrantSend;
 use Relaticle\EmailIntegration\Models\ConnectedAccount;
 use Relaticle\EmailIntegration\Models\Email;
@@ -56,6 +57,7 @@ final class EmailInboxPage extends Page
     use AssertsAllowedEmailRecipients;
     use HasEmailFeatureFlag;
     use HasEmailReaderActions;
+    use PreparesForwardAttachmentSendData;
     use RedirectsToGrantSend;
     use WithPagination;
 
@@ -192,7 +194,7 @@ final class EmailInboxPage extends Page
             // queries per row, matching BaseRecordEmailsPage / BaseEmailsRelationManager.
             ->with(['from', 'labels', 'participants', 'shares'])
             ->withReadStateFor($user->getKey())
-            ->forTeam($user->current_team_id)
+            ->forWorkspace($user->current_workspace_id)
             ->withGlobalScope('visible', new VisibleEmailScope($user));
 
         if ($this->accountId !== '' && $this->accountId !== 'all') {
@@ -228,7 +230,7 @@ final class EmailInboxPage extends Page
         /** @var Email|null $email */
         $email = Email::query()
             ->with(['body', 'participants', 'labels', 'attachments', 'from'])
-            ->forTeam($this->authUser()->current_team_id)
+            ->forWorkspace($this->authUser()->current_workspace_id)
             ->withGlobalScope('visible', new VisibleEmailScope($this->authUser()))
             ->whereKey($this->selectedEmailId)
             ->first();
@@ -268,7 +270,7 @@ final class EmailInboxPage extends Page
         $user = $this->authUser();
 
         $query = Email::query()
-            ->forTeam($user->current_team_id)
+            ->forWorkspace($user->current_workspace_id)
             ->withGlobalScope('visible', new VisibleEmailScope($user))
             ->unreadFor($user->getKey());
 
@@ -325,26 +327,26 @@ final class EmailInboxPage extends Page
     public function tabCounts(): array
     {
         $user = $this->authUser();
-        $teamId = $user->current_team_id;
+        $teamId = $user->current_workspace_id;
 
         return [
             EmailPageTab::DRAFTS->value => Email::query()
-                ->forTeam($teamId)
+                ->forWorkspace($teamId)
                 ->where('user_id', $user->getKey())
                 ->where('status', EmailStatus::DRAFT)
                 ->count(),
             EmailPageTab::OUTBOX->value => Email::query()
-                ->forTeam($teamId)
+                ->forWorkspace($teamId)
                 ->where('user_id', $user->getKey())
                 ->where('status', EmailStatus::QUEUED)
                 ->count(),
             EmailPageTab::FAILED->value => Email::query()
-                ->forTeam($teamId)
+                ->forWorkspace($teamId)
                 ->where('user_id', $user->getKey())
                 ->where('status', EmailStatus::FAILED)
                 ->count(),
             EmailPageTab::TEMPLATES->value => EmailTemplate::query()
-                ->where('team_id', $teamId)
+                ->where('workspace_id', $teamId)
                 ->where(fn (Builder $q): Builder => $q
                     ->where('is_shared', true)
                     ->orWhere('created_by', $user->getKey()))
@@ -400,7 +402,11 @@ final class EmailInboxPage extends Page
             ))
             ->schema($this->replyFormSchema())
             ->action(function (array $data, array $arguments): void {
-                $this->submitReplyForward($data, $arguments['mode'] ?? 'reply');
+                $this->submitReplyForward(
+                    $data,
+                    $arguments['mode'] ?? 'reply',
+                    isset($arguments['emailId']) ? (string) $arguments['emailId'] : null,
+                );
             });
     }
 
@@ -472,7 +478,7 @@ final class EmailInboxPage extends Page
     /**
      * @param  array<string, mixed>  $data
      */
-    private function submitReplyForward(array $data, string $mode): void
+    private function submitReplyForward(array $data, string $mode, ?string $forwardSourceEmailId = null): void
     {
         $source = match ($mode) {
             'reply_all' => EmailCreationSource::REPLY_ALL,
@@ -482,7 +488,7 @@ final class EmailInboxPage extends Page
 
         $team = filament()->getTenant();
 
-        if (! $team instanceof Team) {
+        if (! $team instanceof Workspace) {
             return;
         }
 
@@ -515,6 +521,20 @@ final class EmailInboxPage extends Page
             return;
         }
 
+        if ($mode === 'forward' && $forwardSourceEmailId !== null) {
+            $merged = $this->mergeForwardAttachmentsIntoSendData(
+                $this->authUser(),
+                $this->resolveTeamEmail($forwardSourceEmailId, 'view'),
+                $data,
+            );
+
+            if ($merged === null) {
+                return;
+            }
+
+            $data = $merged;
+        }
+
         $email = resolve(SendEmailAction::class)->execute(
             data: $this->buildSendData($data, $source),
         );
@@ -537,7 +557,7 @@ final class EmailInboxPage extends Page
         /** @var list<string> */
         return ConnectedAccount::query()
             ->where('user_id', $user->getKey())
-            ->where('team_id', $user->current_team_id)
+            ->where('workspace_id', $user->current_workspace_id)
             ->pluck('email_address')
             ->map(fn (mixed $address): string => mb_strtolower((string) $address))
             ->filter()
@@ -648,6 +668,7 @@ final class EmailInboxPage extends Page
      *     privacy_tier: EmailPrivacyTier,
      *     batch_id: null,
      *     priority: EmailPriority,
+     *     attachment_attributes: array<string, array{is_inline?: bool, content_id?: ?string}>,
      * }
      */
     private function buildSendData(array $data, EmailCreationSource $source): array
@@ -676,6 +697,7 @@ final class EmailInboxPage extends Page
             'priority' => EmailPriority::PRIORITY,
             'attachments' => $data['attachments'] ?? [],
             'attachment_file_names' => $data['attachment_file_names'] ?? [],
+            'attachment_attributes' => $data['attachment_attributes'] ?? [],
         ];
     }
 
@@ -716,7 +738,7 @@ final class EmailInboxPage extends Page
         /** @var Collection<string, ConnectedAccount> */
         return once(fn (): Collection => ConnectedAccount::query()
             ->where('user_id', $this->authUser()->getKey())
-            ->where('team_id', filament()->getTenant()?->getKey())
+            ->where('workspace_id', filament()->getTenant()?->getKey())
             ->where('status', 'active')
             ->orderByDesc('is_default')
             ->oldest()

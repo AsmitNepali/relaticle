@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use App\Models\CustomField;
 use App\Models\People;
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Filament\Facades\Filament;
 use Illuminate\Support\Facades\Storage;
 use Relaticle\EmailIntegration\Actions\StoreEmailAction;
@@ -24,13 +24,13 @@ use Relaticle\EmailIntegration\Services\EmailClassifier;
 mutates(StoreEmailAction::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 });
@@ -79,7 +79,7 @@ it('persists the email record with correct fields', function (): void {
     $email = resolve(StoreEmailAction::class)->execute($this->account, $data);
 
     expect($email)->toBeInstanceOf(Email::class)
-        ->and($email->team_id)->toBe($this->team->id)
+        ->and($email->workspace_id)->toBe($this->workspace->id)
         ->and($email->user_id)->toBe($this->user->id)
         ->and($email->connected_account_id)->toBe($this->account->getKey())
         ->and($email->provider_message_id)->toBe('gmail-abc123')
@@ -388,7 +388,7 @@ it('cleans up stored inline files when storing the email rolls back', function (
 
 it('marks email as internal when all participants are team members', function (): void {
     $teamMember = User::factory()->create();
-    $this->team->users()->attach($teamMember, ['role' => 'editor']);
+    $this->workspace->users()->attach($teamMember, ['role' => 'editor']);
 
     $data = makeFetchedEmailData([
         'participants' => [
@@ -404,14 +404,14 @@ it('marks email as internal when all participants are team members', function ()
 
 it('stamps the mailbox workspace privacy default when the owner has switched current team', function (): void {
     $this->user->update(['default_email_sharing_tier' => null]);
-    $this->team->update(['default_email_sharing_tier' => EmailPrivacyTier::PRIVATE]);
+    $this->workspace->update(['default_email_sharing_tier' => EmailPrivacyTier::PRIVATE]);
 
-    $otherTeam = Team::factory()->create([
+    $otherTeam = Workspace::factory()->create([
         'user_id' => $this->user->getKey(),
         'default_email_sharing_tier' => EmailPrivacyTier::FULL,
     ]);
-    $this->user->teams()->attach($otherTeam, ['role' => 'admin']);
-    $this->user->forceFill(['current_team_id' => $otherTeam->getKey()])->save();
+    $this->user->workspaces()->attach($otherTeam, ['role' => 'admin']);
+    $this->user->forceFill(['current_workspace_id' => $otherTeam->getKey()])->save();
 
     $email = resolve(StoreEmailAction::class)->execute($this->account->fresh(), makeFetchedEmailData());
 
@@ -419,13 +419,13 @@ it('stamps the mailbox workspace privacy default when the owner has switched cur
 });
 
 it('treats a member as internal even when their active team is a different team', function (): void {
-    // Membership in THIS team, but their current_team_id points at another team.
-    // Keying internal-detection off current_team_id (instead of membership) would
+    // Membership in THIS team, but their current_workspace_id points at another team.
+    // Keying internal-detection off current_workspace_id (instead of membership) would
     // wrongly classify the email as external and leak it to other members.
-    $otherTeamMember = User::factory()->withTeam()->create();
-    $this->team->users()->attach($otherTeamMember, ['role' => 'editor']);
+    $otherTeamMember = User::factory()->withWorkspace()->create();
+    $this->workspace->users()->attach($otherTeamMember, ['role' => 'editor']);
 
-    expect($otherTeamMember->current_team_id)->not->toBe($this->team->id);
+    expect($otherTeamMember->current_workspace_id)->not->toBe($this->workspace->id);
 
     $data = makeFetchedEmailData([
         'participants' => [
@@ -460,14 +460,14 @@ it('stores the email in the database', function (): void {
     $this->assertDatabaseHas('emails', [
         'id' => $email->getKey(),
         'provider_message_id' => 'stored-msg-001',
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
     ]);
 });
 
 it('runs CRM linking exactly once (no double email_count bump)', function (): void {
     $emailField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', $this->team->getKey())
+        ->where('tenant_id', $this->workspace->getKey())
         ->where('entity_type', 'people')
         ->where('code', 'emails')
         ->first();
@@ -477,13 +477,13 @@ it('runs CRM linking exactly once (no double email_count bump)', function (): vo
     }
 
     $person = People::query()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Counted Person',
         'creator_id' => $this->user->id,
         'email_count' => 0,
     ]);
 
-    $person->saveCustomFieldValue($emailField, ['counted@partner.com'], $this->team);
+    $person->saveCustomFieldValue($emailField, ['counted@partner.com'], $this->workspace);
 
     $data = makeFetchedEmailData([
         'direction' => EmailDirection::INBOUND,
@@ -522,7 +522,7 @@ it('creates the email thread aggregate on first email', function (): void {
         ->first();
 
     expect($thread)->not->toBeNull()
-        ->and($thread->team_id)->toBe($this->team->id)
+        ->and($thread->workspace_id)->toBe($this->workspace->id)
         ->and($thread->subject)->toBe('Thread Subject')
         ->and($thread->email_count)->toBe(1)
         ->and($thread->participant_count)->toBe(2)
@@ -578,7 +578,7 @@ it('excludes queued unsent emails from the thread aggregate', function (): void 
 
     // A queued outbound reply already sits in the thread with no sent_at yet.
     Email::query()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->getKey(),
         'rfc_message_id' => null,
@@ -639,7 +639,7 @@ it('adopts a pending Microsoft sent row instead of creating a duplicate', functi
     $pendingThreadId = 'ms-pending-thread-01ARZ3NDEKTSV4RRFFQ69G5FAV';
 
     $sent = Email::factory()->outbound()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->getKey(),
         'rfc_message_id' => '<local-id@example.com>',
@@ -650,7 +650,7 @@ it('adopts a pending Microsoft sent row instead of creating a duplicate', functi
     ]);
 
     EmailThread::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->getKey(),
         'thread_id' => $pendingThreadId,
         'subject' => 'Hi',
@@ -689,7 +689,7 @@ it('adopts a pending Microsoft sent row instead of creating a duplicate', functi
 
 it('adopts a pending Microsoft sent row when Graph keeps the stamped message id', function (): void {
     $sent = Email::factory()->outbound()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->getKey(),
         'rfc_message_id' => '<local-id@example.com>',
@@ -713,12 +713,12 @@ it('adopts a pending Microsoft sent row when Graph keeps the stamped message id'
 
 it('does not adopt a pending Microsoft send that belongs to another mailbox', function (): void {
     $otherAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
     Email::factory()->outbound()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $otherAccount->getKey(),
         'rfc_message_id' => '<local-id@example.com>',

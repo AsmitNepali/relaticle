@@ -18,7 +18,7 @@ mutates(CallbackController::class, EmailComposer::class);
 it('flips calendar capability and dispatches InitialCalendarSyncJob on calendar grant', function (): void {
     Bus::fake();
 
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
 
     $social = new SocialiteUser;
@@ -48,7 +48,7 @@ it('flips calendar capability and dispatches InitialCalendarSyncJob on calendar 
 it('enables calendar when Google grants calendar.events without calendar.readonly', function (): void {
     Bus::fake();
 
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
 
     $social = new SocialiteUser;
@@ -78,7 +78,7 @@ it('enables calendar when Google grants calendar.events without calendar.readonl
 it('connects mail without calendar when the user leaves both calendar scopes unchecked', function (): void {
     Bus::fake();
 
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
 
     $social = new SocialiteUser;
@@ -108,7 +108,7 @@ it('connects mail without calendar when the user leaves both calendar scopes unc
 it('records send as missing when Google does not grant gmail.send', function (): void {
     Bus::fake();
 
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
 
     $social = new SocialiteUser;
@@ -138,10 +138,10 @@ it('records send as missing when Google does not grant gmail.send', function ():
 it('turns send back on after reconnecting with gmail.send', function (): void {
     Bus::fake();
 
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
     Filament::setCurrentPanel(Filament::getPanel('app'));
-    Filament::setTenant($user->currentTeam);
+    Filament::setTenant($user->currentWorkspace);
 
     $connect = function (array $scopes) use ($user): ConnectedAccount {
         $social = new SocialiteUser;

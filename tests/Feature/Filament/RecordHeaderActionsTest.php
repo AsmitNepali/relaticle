@@ -9,8 +9,8 @@ use App\Filament\Resources\PeopleResource\Pages\ViewPeople;
 use App\Models\Company;
 use App\Models\Opportunity;
 use App\Models\People;
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Filament\Facades\Filament;
 use Illuminate\Support\Facades\DB;
 use Laravel\Pennant\Feature;
@@ -25,14 +25,14 @@ use Relaticle\EmailIntegration\Services\EmailVisibilityService;
 mutates(ViewCompany::class, ViewPeople::class, ViewOpportunity::class, ViewRecordEmailsAction::class, EmailVisibilityService::class, CommunicationIntelligenceInfolist::class, VisibleCommunicationIntelligence::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 });
 
 it('no longer exposes the AI summary or ask-about-this actions on a company', function (): void {
-    $company = Company::factory()->recycle([$this->user, $this->team])->create();
+    $company = Company::factory()->recycle([$this->user, $this->workspace])->create();
 
     livewire(ViewCompany::class, ['record' => $company->getKey()])
         ->assertActionDoesNotExist('generateSummary')
@@ -41,7 +41,7 @@ it('no longer exposes the AI summary or ask-about-this actions on a company', fu
 });
 
 it('no longer exposes the AI summary or ask-about-this actions on a person', function (): void {
-    $person = People::factory()->recycle([$this->user, $this->team])->create();
+    $person = People::factory()->recycle([$this->user, $this->workspace])->create();
 
     livewire(ViewPeople::class, ['record' => $person->getKey()])
         ->assertActionDoesNotExist('generateSummary')
@@ -50,7 +50,7 @@ it('no longer exposes the AI summary or ask-about-this actions on a person', fun
 });
 
 it('no longer exposes the AI summary or ask-about-this actions on an opportunity', function (): void {
-    $opportunity = Opportunity::factory()->recycle([$this->user, $this->team])->create();
+    $opportunity = Opportunity::factory()->recycle([$this->user, $this->workspace])->create();
 
     livewire(ViewOpportunity::class, ['record' => $opportunity->getKey()])
         ->assertActionDoesNotExist('generateSummary')
@@ -61,7 +61,7 @@ it('no longer exposes the AI summary or ask-about-this actions on an opportunity
 it('hides the emails action on company, person, and opportunity views when email integration is off', function (string $page, Closure $record): void {
     Feature::deactivate(EmailIntegration::class);
 
-    $owner = $record($this->user, $this->team);
+    $owner = $record($this->user, $this->workspace);
 
     livewire($page, ['record' => $owner->getKey()])
         ->assertActionHidden('viewEmails');
@@ -81,7 +81,7 @@ it('hides the emails action on company, person, and opportunity views when email
 ]);
 
 it('shows the emails action on company, person, and opportunity views when email integration is on', function (string $page, Closure $record): void {
-    $owner = $record($this->user, $this->team);
+    $owner = $record($this->user, $this->workspace);
 
     livewire($page, ['record' => $owner->getKey()])
         ->assertActionVisible('viewEmails');
@@ -101,22 +101,22 @@ it('shows the emails action on company, person, and opportunity views when email
 ]);
 
 /**
- * @return array<string, array{0: class-string, 1: Closure(User, Team): (Company|Opportunity|People)}>
+ * @return array<string, array{0: class-string, 1: Closure(User, Workspace): (Company|Opportunity|People)}>
  */
 function recordEmailsHeaderPages(): array
 {
     return [
         'company' => [
             ViewCompany::class,
-            fn (User $user, Team $team): Company => Company::factory()->recycle([$user, $team])->create(['email_count' => 99]),
+            fn (User $user, Workspace $team): Company => Company::factory()->recycle([$user, $team])->create(['email_count' => 99]),
         ],
         'person' => [
             ViewPeople::class,
-            fn (User $user, Team $team): People => People::factory()->recycle([$user, $team])->create(['email_count' => 99]),
+            fn (User $user, Workspace $team): People => People::factory()->recycle([$user, $team])->create(['email_count' => 99]),
         ],
         'opportunity' => [
             ViewOpportunity::class,
-            fn (User $user, Team $team): Opportunity => Opportunity::factory()->recycle([$user, $team])->create(['email_count' => 99]),
+            fn (User $user, Workspace $team): Opportunity => Opportunity::factory()->recycle([$user, $team])->create(['email_count' => 99]),
         ],
     ];
 }
@@ -124,15 +124,15 @@ function recordEmailsHeaderPages(): array
 /**
  * @param  array<string, mixed>  $overrides
  */
-function attachRecordEmail(User $user, Team $team, Company|Opportunity|People $record, array $overrides = []): Email
+function attachRecordEmail(User $user, Workspace $team, Company|Opportunity|People $record, array $overrides = []): Email
 {
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $user->id,
     ]));
 
     $email = Email::factory()->create(array_merge([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $user->id,
         'connected_account_id' => $account->getKey(),
     ], $overrides));
@@ -151,16 +151,16 @@ function emailsHeaderBadge(string $page, Company|Opportunity|People $record): ?s
 }
 
 it('badges the emails header action with the visible count for the record', function (string $page, Closure $record): void {
-    $owner = $record($this->user, $this->team);
-    attachRecordEmail($this->user, $this->team, $owner);
-    attachRecordEmail($this->user, $this->team, $owner);
+    $owner = $record($this->user, $this->workspace);
+    attachRecordEmail($this->user, $this->workspace, $owner);
+    attachRecordEmail($this->user, $this->workspace, $owner);
 
     expect(emailsHeaderBadge($page, $owner))->toBe('2');
 })->with(recordEmailsHeaderPages());
 
 it('colors the emails header badge so it stays readable on the gray action', function (): void {
-    $person = People::factory()->recycle([$this->user, $this->team])->create();
-    attachRecordEmail($this->user, $this->team, $person);
+    $person = People::factory()->recycle([$this->user, $this->workspace])->create();
+    attachRecordEmail($this->user, $this->workspace, $person);
 
     $action = livewire(ViewPeople::class, ['record' => $person->getKey()])
         ->instance()
@@ -170,21 +170,21 @@ it('colors the emails header badge so it stays readable on the gray action', fun
 });
 
 it('hides the emails header badge when the record has no visible mail', function (string $page, Closure $record): void {
-    $owner = $record($this->user, $this->team);
+    $owner = $record($this->user, $this->workspace);
 
     expect(emailsHeaderBadge($page, $owner))->toBeNull();
 })->with(recordEmailsHeaderPages());
 
 it('caps the emails header badge at 99+', function (): void {
-    $person = People::factory()->recycle([$this->user, $this->team])->create();
+    $person = People::factory()->recycle([$this->user, $this->workspace])->create();
 
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
     $emails = Email::factory()->count(100)->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $account->getKey(),
     ]);
@@ -195,36 +195,36 @@ it('caps the emails header badge at 99+', function (): void {
 });
 
 it('does not badge private teammate mail or emails linked to another record', function (string $page, Closure $record): void {
-    $owner = $record($this->user, $this->team);
-    $other = $record($this->user, $this->team);
+    $owner = $record($this->user, $this->workspace);
+    $other = $record($this->user, $this->workspace);
 
-    attachRecordEmail($this->user, $this->team, $owner);
+    attachRecordEmail($this->user, $this->workspace, $owner);
 
-    $coworker = User::factory()->create(['current_team_id' => $this->team->id]);
-    $this->team->users()->attach($coworker, ['role' => 'editor']);
+    $coworker = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->users()->attach($coworker, ['role' => 'editor']);
 
-    attachRecordEmail($coworker, $this->team, $owner, [
+    attachRecordEmail($coworker, $this->workspace, $owner, [
         'privacy_tier' => EmailPrivacyTier::PRIVATE,
         'is_internal' => false,
     ]);
-    attachRecordEmail($this->user, $this->team, $other);
+    attachRecordEmail($this->user, $this->workspace, $other);
 
     expect(emailsHeaderBadge($page, $owner))->toBe('1');
 })->with(recordEmailsHeaderPages());
 
 it('renders scoped communication intelligence once on the person view', function (): void {
-    $person = People::factory()->recycle([$this->user, $this->team])->create([
+    $person = People::factory()->recycle([$this->user, $this->workspace])->create([
         'email_count' => 99,
         'inbound_email_count' => 50,
         'outbound_email_count' => 49,
     ]);
 
-    attachRecordEmail($this->user, $this->team, $person);
+    attachRecordEmail($this->user, $this->workspace, $person);
 
-    $coworker = User::factory()->create(['current_team_id' => $this->team->id]);
-    $this->team->users()->attach($coworker, ['role' => 'editor']);
+    $coworker = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->users()->attach($coworker, ['role' => 'editor']);
 
-    attachRecordEmail($coworker, $this->team, $person, [
+    attachRecordEmail($coworker, $this->workspace, $person, [
         'privacy_tier' => EmailPrivacyTier::PRIVATE,
         'is_internal' => false,
     ]);

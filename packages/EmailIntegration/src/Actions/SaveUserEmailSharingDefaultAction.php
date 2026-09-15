@@ -20,11 +20,20 @@ final readonly class SaveUserEmailSharingDefaultAction
     public function execute(User $user, ?EmailPrivacyTier $storedTier, EmailPrivacyTier $effectiveTier): void
     {
         $previousEffectiveTier = $this->privacy->effectiveSharingTierForUser($user);
+        $hadOverride = $user->default_email_sharing_tier !== null;
 
-        DB::transaction(function () use ($user, $storedTier, $effectiveTier, $previousEffectiveTier): void {
+        DB::transaction(function () use ($user, $storedTier, $effectiveTier, $previousEffectiveTier, $hadOverride): void {
             $this->updateSettings->execute($user, $storedTier);
 
-            if ($previousEffectiveTier !== $effectiveTier) {
+            if (! $storedTier instanceof EmailPrivacyTier) {
+                if ($hadOverride) {
+                    $this->applyRetroactive->executeForUserUsingWorkspaceDefaults($user);
+                }
+
+                return;
+            }
+
+            if ($previousEffectiveTier !== $effectiveTier || ! $hadOverride) {
                 $this->applyRetroactive->executeForUser($user, $effectiveTier);
             }
         });

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Filament\Concerns;
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Filament\Actions\Action;
 use Illuminate\Support\Collection;
 use Relaticle\EmailIntegration\Models\ConnectedAccount;
@@ -45,7 +45,7 @@ trait RedirectsToGrantSend
 
         $team = filament()->getTenant();
 
-        if (! $team instanceof Team) {
+        if (! $team instanceof Workspace) {
             return;
         }
 
@@ -83,7 +83,7 @@ trait RedirectsToGrantSend
         $user = auth()->user();
         $team = filament()->getTenant();
 
-        if (! $user instanceof User || ! $team instanceof Team) {
+        if (! $user instanceof User || ! $team instanceof Workspace) {
             return collect();
         }
 

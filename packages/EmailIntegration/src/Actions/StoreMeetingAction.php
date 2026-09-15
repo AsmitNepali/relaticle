@@ -38,7 +38,7 @@ final readonly class StoreMeetingAction
             $responseStatus = $this->resolveSelfResponseStatus($payload, $account, $meeting);
 
             $attributes = [
-                'team_id' => $account->team_id,
+                'workspace_id' => $account->workspace_id,
                 'connected_account_id' => $account->getKey(),
                 'provider_event_id' => $payload->providerEventId,
                 'provider_recurring_event_id' => $payload->providerRecurringEventId,

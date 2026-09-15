@@ -33,13 +33,13 @@ beforeEach(function (): void {
 
 function makeAzureAccount(): ConnectedAccount
 {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
 
     return ConnectedAccount::factory()
         ->azure()
         ->for($user)
         ->create([
-            'team_id' => $user->currentTeam->getKey(),
+            'workspace_id' => $user->currentWorkspace->getKey(),
             'access_token' => 'access',
             'refresh_token' => 'refresh',
             'token_expires_at' => now()->addHour(),
@@ -728,8 +728,51 @@ it('expands and maps inbound attachment metadata into FetchedEmailData', functio
         ->and($email->attachments[0]['mime_type'])->toBe('application/pdf')
         ->and($email->attachments[0]['size'])->toBe(2048)
         ->and($email->attachments[0]['attachment_id'])->toBe('att-1')
-        ->and($email->attachments[0]['inline_data'])->toBeNull();
+        ->and($email->attachments[0]['inline_data'])->toBeNull()
+        ->and($email->attachments[0]['is_inline'] ?? null)->toBeFalse();
 
     Http::assertSent(fn (Request $r): bool => str_contains((string) $r->url(), '/me/messages/AAA2')
         && str_contains(urldecode((string) $r->url()), '$expand=attachments'));
+});
+
+it('stores Graph inline cid images so the reader can rewrite them', function (): void {
+    Http::fake([
+        ...graphWellKnownFolderFakes(),
+        'https://graph.microsoft.com/v1.0/me/messages/AAA3*' => Http::response(graphMessagePayload([
+            'id' => 'AAA3',
+            'internetMessageId' => '<rfc-cid@example.com>',
+            'conversationId' => 'thread-3',
+            'subject' => 'With logo',
+            'bodyPreview' => 'see logo',
+            'hasAttachments' => false,
+            'body' => ['contentType' => 'html', 'content' => '<p><img src="cid:logo@example.test"></p>'],
+            'attachments' => [[
+                '@odata.type' => '#microsoft.graph.fileAttachment',
+                'id' => 'att-inline-1',
+                'name' => 'logo.png',
+                'contentType' => 'image/png',
+                'size' => 1024,
+                'isInline' => true,
+                'contentId' => 'logo@example.test',
+            ]],
+        ])),
+    ]);
+
+    $account = makeAzureAccount();
+    $fetched = resolve(MicrosoftGraphServiceFactory::class)->make($account)->fetchMessage('AAA3');
+
+    expect($fetched->attachments[0]['is_inline'] ?? null)->toBeTrue();
+
+    $email = resolve(StoreEmailAction::class)->execute($account, $fetched)->load(['body', 'attachments']);
+    $attachment = $email->attachments()->sole();
+
+    expect($attachment->is_inline)->toBeTrue()
+        ->and($attachment->content_id)->toBe('logo@example.test')
+        ->and($email->downloadAttachments())->toHaveCount(0);
+
+    $html = $email->sanitizedBodyHtml();
+
+    expect($html)
+        ->toContain(route('email-attachments.inline', $attachment->getKey()))
+        ->not->toContain('cid:logo@example.test');
 });

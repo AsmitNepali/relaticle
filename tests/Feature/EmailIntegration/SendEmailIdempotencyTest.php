@@ -81,13 +81,13 @@ function bindFakeMailService(FakeMailService $fake): void
 }
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 });
@@ -96,7 +96,7 @@ function makeOutboundEmail(int $attempts): Email
 {
     /** @var Email $email */
     $email = Email::factory()->outbound()->create([
-        'team_id' => test()->team->id,
+        'workspace_id' => test()->workspace->id,
         'user_id' => test()->user->id,
         'connected_account_id' => test()->account->getKey(),
         'rfc_message_id' => '<idem-key@example.com>',

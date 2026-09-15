@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\EmailAttachmentController;
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Filament\Facades\Filament;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -16,21 +16,21 @@ use Relaticle\EmailIntegration\Models\EmailAttachment;
 mutates(EmailAttachmentController::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
-    $this->team = $this->user->currentTeam;
+    $this->user = User::factory()->withWorkspace()->create();
+    $this->workspace = $this->user->currentWorkspace;
     $this->actingAs($this->user);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 });
 
-function makeAttachmentForUser(User $owner, Team $team, ConnectedAccount $account, array $emailOverrides = [], array $attachmentOverrides = []): EmailAttachment
+function makeAttachmentForUser(User $owner, Workspace $team, ConnectedAccount $account, array $emailOverrides = [], array $attachmentOverrides = []): EmailAttachment
 {
     $email = Email::factory()->create(array_merge([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $owner->id,
         'connected_account_id' => $account->id,
         'privacy_tier' => EmailPrivacyTier::FULL,
@@ -46,7 +46,7 @@ function makeAttachmentForUser(User $owner, Team $team, ConnectedAccount $accoun
 }
 
 it('requires authentication', function (): void {
-    $attachment = makeAttachmentForUser($this->user, $this->team, $this->account);
+    $attachment = makeAttachmentForUser($this->user, $this->workspace, $this->account);
 
     auth()->logout();
 
@@ -55,10 +55,10 @@ it('requires authentication', function (): void {
 });
 
 it('aborts 403 when user belongs to a different team than the email', function (): void {
-    $otherUser = User::factory()->withTeam()->create();
-    $otherTeam = $otherUser->currentTeam;
+    $otherUser = User::factory()->withWorkspace()->create();
+    $otherTeam = $otherUser->currentWorkspace;
     $otherAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $otherTeam->id,
+        'workspace_id' => $otherTeam->id,
         'user_id' => $otherUser->id,
     ]));
 
@@ -68,16 +68,16 @@ it('aborts 403 when user belongs to a different team than the email', function (
         ->assertForbidden();
 });
 
-it('streams a download when the viewer belongs to the email team but current_team_id is another workspace', function (): void {
+it('streams a download when the viewer belongs to the email team but current_workspace_id is another workspace', function (): void {
     Storage::fake(EmailAttachment::DISK);
     Storage::disk(EmailAttachment::DISK)->put('attachments/draft.pdf', 'locally stored bytes');
 
-    $otherTeam = Team::factory()->create(['user_id' => $this->user->getKey()]);
-    $this->user->teams()->attach($otherTeam, ['role' => 'admin']);
-    $this->user->forceFill(['current_team_id' => $otherTeam->getKey()])->save();
+    $otherTeam = Workspace::factory()->create(['user_id' => $this->user->getKey()]);
+    $this->user->workspaces()->attach($otherTeam, ['role' => 'admin']);
+    $this->user->forceFill(['current_workspace_id' => $otherTeam->getKey()])->save();
     $this->actingAs($this->user->fresh());
 
-    $attachment = makeAttachmentForUser($this->user, $this->team, $this->account, attachmentOverrides: [
+    $attachment = makeAttachmentForUser($this->user, $this->workspace, $this->account, attachmentOverrides: [
         'provider_attachment_id' => null,
         'storage_path' => 'attachments/draft.pdf',
         'filename' => 'draft.pdf',
@@ -90,11 +90,11 @@ it('streams a download when the viewer belongs to the email team but current_tea
 });
 
 it('aborts 403 when viewer has no body access (private privacy tier)', function (): void {
-    $owner = User::factory()->create(['current_team_id' => $this->team->id]);
-    $this->team->users()->attach($owner, ['role' => 'editor']);
+    $owner = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->users()->attach($owner, ['role' => 'editor']);
 
     $email = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $owner->id,
         'connected_account_id' => $this->account->id,
         'privacy_tier' => EmailPrivacyTier::PRIVATE,
@@ -112,7 +112,7 @@ it('aborts 403 when viewer has no body access (private privacy tier)', function 
 it('aborts 404 when there is neither a provider id nor a stored file', function (): void {
     Storage::fake(EmailAttachment::DISK);
 
-    $attachment = makeAttachmentForUser($this->user, $this->team, $this->account, attachmentOverrides: [
+    $attachment = makeAttachmentForUser($this->user, $this->workspace, $this->account, attachmentOverrides: [
         'provider_attachment_id' => null,
     ]);
 
@@ -121,7 +121,7 @@ it('aborts 404 when there is neither a provider id nor a stored file', function 
 });
 
 it('aborts 404 when a file the user attached has no stored path', function (): void {
-    $attachment = makeAttachmentForUser($this->user, $this->team, $this->account, attachmentOverrides: [
+    $attachment = makeAttachmentForUser($this->user, $this->workspace, $this->account, attachmentOverrides: [
         'provider_attachment_id' => null,
         'storage_path' => null,
     ]);
@@ -134,7 +134,7 @@ it('streams a file the user attached here, which never went through a provider',
     Storage::fake(EmailAttachment::DISK);
     Storage::disk(EmailAttachment::DISK)->put('attachments/draft.pdf', 'locally stored bytes');
 
-    $attachment = makeAttachmentForUser($this->user, $this->team, $this->account, attachmentOverrides: [
+    $attachment = makeAttachmentForUser($this->user, $this->workspace, $this->account, attachmentOverrides: [
         'provider_attachment_id' => null,
         'storage_path' => 'attachments/draft.pdf',
         'filename' => 'draft.pdf',
@@ -150,7 +150,7 @@ it('serves inline image attachments for email body cid references', function ():
     Storage::fake(EmailAttachment::DISK);
     Storage::disk(EmailAttachment::DISK)->put('attachments/logo.png', 'png-bytes');
 
-    $attachment = makeAttachmentForUser($this->user, $this->team, $this->account, attachmentOverrides: [
+    $attachment = makeAttachmentForUser($this->user, $this->workspace, $this->account, attachmentOverrides: [
         'provider_attachment_id' => null,
         'storage_path' => 'attachments/logo.png',
         'filename' => 'logo.png',
@@ -168,7 +168,7 @@ it('serves inline image attachments for email body cid references', function ():
 });
 
 it('does not serve non-inline attachments through the inline image route', function (): void {
-    $attachment = makeAttachmentForUser($this->user, $this->team, $this->account, attachmentOverrides: [
+    $attachment = makeAttachmentForUser($this->user, $this->workspace, $this->account, attachmentOverrides: [
         'mime_type' => 'image/png',
         'is_inline' => false,
     ]);
@@ -178,7 +178,7 @@ it('does not serve non-inline attachments through the inline image route', funct
 });
 
 it('aborts 404 when the connected account is missing', function (): void {
-    $attachment = makeAttachmentForUser($this->user, $this->team, $this->account);
+    $attachment = makeAttachmentForUser($this->user, $this->workspace, $this->account);
     $this->account->delete();
 
     $this->get(route('email-attachments.download', ['attachment' => $attachment->id]))
@@ -191,7 +191,7 @@ it('streams attachment bytes for a Microsoft Graph account', function (): void {
     config()->set('services.azure.tenant', 'common');
 
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->azure()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'access_token' => 'access',
         'refresh_token' => 'refresh',
@@ -200,7 +200,7 @@ it('streams attachment bytes for a Microsoft Graph account', function (): void {
 
     $attachment = makeAttachmentForUser(
         $this->user,
-        $this->team,
+        $this->workspace,
         $account,
         ['provider_message_id' => 'ms-msg-1'],
         ['provider_attachment_id' => 'ms-att-1'],

@@ -146,14 +146,14 @@ final readonly class MeetingAttendeePresenter
             $meeting = $attendee->getRelation('meeting');
 
             if ($meeting instanceof Meeting) {
-                return (string) $meeting->team_id;
+                return (string) $meeting->workspace_id;
             }
         }
 
         $user = auth()->user();
 
-        if ($user instanceof User && $user->currentTeam !== null) {
-            return (string) $user->currentTeam->getKey();
+        if ($user instanceof User && $user->currentWorkspace !== null) {
+            return (string) $user->currentWorkspace->getKey();
         }
 
         return null;

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Filament\Concerns;
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Notifications\Notification;
@@ -109,7 +109,7 @@ trait HasConnectedAccountActions
             ->url(function (array $arguments): string {
                 $account = $this->findOwnedAccountOrFail($arguments);
 
-                return MailboxOAuthWorkspace::redirectUrl($account->provider->value, $account->team);
+                return MailboxOAuthWorkspace::redirectUrl($account->provider->value, $account->workspace);
             }, true);
     }
 
@@ -144,7 +144,7 @@ trait HasConnectedAccountActions
                 }
 
                 // Always re-run OAuth when enabling so the provider grants the calendar scope on the token.
-                $this->redirect(MailboxOAuthWorkspace::redirectUrl($account->provider->value, $account->team));
+                $this->redirect(MailboxOAuthWorkspace::redirectUrl($account->provider->value, $account->workspace));
             });
     }
 
@@ -262,7 +262,7 @@ trait HasConnectedAccountActions
     {
         /** @var User $user */
         $user = auth()->user();
-        /** @var Team $team */
+        /** @var Workspace $team */
         $team = filament()->getTenant();
 
         return ConnectedAccount::query()->ownedBy($user, $team);

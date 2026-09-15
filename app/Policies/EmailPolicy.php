@@ -25,7 +25,7 @@ final readonly class EmailPolicy
             return null;
         }
 
-        return $user->belongsToTeamId($email->team_id) ? null : false;
+        return $user->belongsToWorkspaceId($email->workspace_id) ? null : false;
     }
 
     public function viewAny(User $user): bool
@@ -34,7 +34,7 @@ final readonly class EmailPolicy
             return false;
         }
 
-        return $user->hasVerifiedEmail() && $user->currentTeam !== null;
+        return $user->hasVerifiedEmail() && $user->currentWorkspace !== null;
     }
 
     /** Can the viewer see this email exists at all? */

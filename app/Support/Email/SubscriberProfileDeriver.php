@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace App\Support\Email;
 
 use App\Enums\SubscriberTagEnum;
-use App\Models\AiSummary;
 use App\Models\Company;
 use App\Models\Opportunity;
 use App\Models\People;
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Illuminate\Database\Eloquent\Model;
 use Relaticle\Chat\Models\AgentConversationMessage;
 
@@ -33,9 +32,9 @@ final readonly class SubscriberProfileDeriver
     {
         $tags = [SubscriberTagEnum::Verified->value, $this->signupSourceTag($user)];
 
-        foreach ($user->ownedTeams as $team) {
-            /** @var Team $team */
-            $tags = [...$tags, ...$team->onboardingSubscriberTags()];
+        foreach ($user->ownedWorkspaces as $workspace) {
+            /** @var Workspace $workspace */
+            $tags = [...$tags, ...$workspace->onboardingSubscriberTags()];
         }
 
         if ($this->hasCrmData($user)) {
@@ -46,11 +45,11 @@ final readonly class SubscriberProfileDeriver
             $tags[] = SubscriberTagEnum::HasApiToken->value;
         }
 
-        if ($user->ownedTeams()->whereHas('users')->exists()) {
-            $tags[] = SubscriberTagEnum::HasTeamMembers->value;
+        if ($user->ownedWorkspaces()->whereHas('users')->exists()) {
+            $tags[] = SubscriberTagEnum::HasWorkspaceMembers->value;
         }
 
-        if ($this->hasAiUsage($user)) {
+        if ($this->hasChatUsage($user)) {
             $tags[] = SubscriberTagEnum::HasAiUsage->value;
         }
 
@@ -89,10 +88,10 @@ final readonly class SubscriberProfileDeriver
      */
     public function hasCrmData(User $user, ?Model $excluding = null): bool
     {
-        $teamIds = $user->allTeams()->pluck('id');
+        $workspaceIds = $user->allWorkspaces()->pluck('id');
 
         foreach ([Company::class, People::class, Opportunity::class] as $entity) {
-            $query = $entity::query()->whereIn('team_id', $teamIds);
+            $query = $entity::query()->whereIn('workspace_id', $workspaceIds);
 
             if ($excluding instanceof $entity) {
                 $query->whereKeyNot($excluding->getKey());
@@ -106,25 +105,9 @@ final readonly class SubscriberProfileDeriver
         return false;
     }
 
-    /**
-     * The single definition of "this account has used AI": an assistant message
-     * the user sent, or an AI summary generated anywhere in their workspaces.
-     * Trigger paths pass the record they just created as $excluding so they can
-     * ask whether any OTHER one already existed.
-     */
-    public function hasAiUsage(User $user, ?Model $excluding = null): bool
+    private function hasChatUsage(User $user): bool
     {
-        if (AgentConversationMessage::query()->sentBy($user)->exists()) {
-            return true;
-        }
-
-        $summaries = AiSummary::query()->whereIn('team_id', $user->allTeams()->pluck('id'));
-
-        if ($excluding instanceof AiSummary) {
-            $summaries->whereKeyNot($excluding->getKey());
-        }
-
-        return $summaries->exists();
+        return AgentConversationMessage::query()->sentBy($user)->exists();
     }
 
     /**

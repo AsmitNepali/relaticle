@@ -37,27 +37,27 @@ function fakeSummary(string $text, int $promptTokens, int $completionTokens): Te
 mutates(EmailThreadSummaryService::class);
 
 beforeEach(function (): void {
-    $this->owner = User::factory()->withTeam()->create();
-    $this->team = $this->owner->currentTeam;
+    $this->owner = User::factory()->withWorkspace()->create();
+    $this->workspace = $this->owner->currentWorkspace;
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
     ]));
 
     $this->actingAs($this->owner);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 });
 
 function makeThreadWithEmail(): EmailThread
 {
     $thread = EmailThread::factory()->create([
-        'team_id' => test()->team->id,
+        'workspace_id' => test()->workspace->id,
         'connected_account_id' => test()->account->getKey(),
     ]);
 
     $email = Email::factory()->create([
-        'team_id' => test()->team->id,
+        'workspace_id' => test()->workspace->id,
         'user_id' => test()->owner->id,
         'connected_account_id' => test()->account->getKey(),
         'thread_id' => $thread->thread_id,
@@ -92,7 +92,7 @@ it('generates and caches a summary for an email thread', function (): void {
     $this->assertDatabaseHas('ai_summaries', [
         'summarizable_type' => $thread->getMorphClass(),
         'summarizable_id' => $thread->getKey(),
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
     ]);
 });
 
@@ -115,7 +115,7 @@ it('regenerates the summary when requested', function (): void {
     $thread = makeThreadWithEmail();
 
     AiSummary::query()->create([
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
         'summarizable_type' => $thread->getMorphClass(),
         'summarizable_id' => $thread->getKey(),
         'summary' => 'Old summary',
@@ -142,19 +142,19 @@ it('does not expose cached private content to a viewer of one shared message', f
     $shared = $thread->emails()->firstOrFail();
     $shared->update(['privacy_tier' => EmailPrivacyTier::PRIVATE]);
     $private = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
         'connected_account_id' => $this->account->getKey(),
         'thread_id' => $thread->thread_id,
         'privacy_tier' => EmailPrivacyTier::PRIVATE,
     ]);
     EmailBody::factory()->create(['email_id' => $private->getKey(), 'body_text' => 'Confidential acquisition budget']);
-    $person = People::factory()->create(['team_id' => $this->team->id, 'creator_id' => $this->owner->id]);
+    $person = People::factory()->create(['workspace_id' => $this->workspace->id, 'creator_id' => $this->owner->id]);
     $person->emails()->attach([$shared->getKey(), $private->getKey()]);
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
-    $this->team->users()->attach($viewer, ['role' => 'editor']);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->users()->attach($viewer, ['role' => 'editor']);
     EmailShare::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'email_id' => $shared->getKey(),
         'shared_by' => $this->owner->id,
         'shared_with' => $viewer->id,
@@ -162,7 +162,7 @@ it('does not expose cached private content to a viewer of one shared message', f
     ]);
     if ($revokeShare) {
         EmailShare::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'email_id' => $private->getKey(),
             'shared_by' => $this->owner->id,
             'shared_with' => $viewer->id,
@@ -192,7 +192,7 @@ it('does not expose cached private content to a viewer of one shared message', f
 it('omits hidden message metadata from the summary prompt', function (): void {
     $hiddenSentAt = now()->setDate(2020, 3, 11)->setTime(8, 17, 0);
     $thread = EmailThread::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->getKey(),
         'subject' => 'Confidential acquisition talks',
         'email_count' => 2,
@@ -201,7 +201,7 @@ it('omits hidden message metadata from the summary prompt', function (): void {
         'last_email_at' => now(),
     ]);
     $hidden = Email::factory()->private()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
         'connected_account_id' => $this->account->getKey(),
         'thread_id' => $thread->thread_id,
@@ -221,7 +221,7 @@ it('omits hidden message metadata from the summary prompt', function (): void {
         'body_text' => 'Do not disclose the acquisition budget',
     ]);
     $shared = Email::factory()->private()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
         'connected_account_id' => $this->account->getKey(),
         'thread_id' => $thread->thread_id,
@@ -240,10 +240,10 @@ it('omits hidden message metadata from the summary prompt', function (): void {
         'email_id' => $shared->getKey(),
         'body_text' => 'Let us schedule a pricing call next week',
     ]);
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
-    $this->team->users()->attach($viewer, ['role' => 'editor']);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->users()->attach($viewer, ['role' => 'editor']);
     EmailShare::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'email_id' => $shared->getKey(),
         'shared_by' => $this->owner->id,
         'shared_with' => $viewer->id,
@@ -273,10 +273,10 @@ it('omits hidden message metadata from the summary prompt', function (): void {
 it('regenerates legacy summaries without a permission fingerprint', function (): void {
     $thread = makeThreadWithEmail();
     $email = $thread->emails()->firstOrFail();
-    $person = People::factory()->create(['team_id' => $this->team->id, 'creator_id' => $this->owner->id]);
+    $person = People::factory()->create(['workspace_id' => $this->workspace->id, 'creator_id' => $this->owner->id]);
     $person->emails()->attach($email->getKey());
     AiSummary::query()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'summarizable_type' => $thread->getMorphClass(),
         'summarizable_id' => $thread->getKey(),
         'summary' => 'Legacy unscoped summary',

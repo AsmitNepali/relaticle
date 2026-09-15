@@ -19,18 +19,18 @@ use Relaticle\EmailIntegration\Services\EmailSearchService;
 mutates(AccessRequestsTable::class, EmailAccessRequestsPage::class, InteractsWithEmailAccessRequests::class, EmailSearchService::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
     $this->email = Email::factory()->private()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->getKey(),
     ]);
@@ -38,7 +38,7 @@ beforeEach(function (): void {
 
 describe('Tab switching', function (): void {
     it('shows incoming requests in a table with the available review actions', function (): void {
-        $requester = User::factory()->create(['current_team_id' => $this->team->id]);
+        $requester = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
         $request = EmailAccessRequest::factory()->pending()->create([
             'owner_id' => $this->user->id,
@@ -54,7 +54,7 @@ describe('Tab switching', function (): void {
     });
 
     it('defaults to incoming tab and shows requests where user is owner', function (): void {
-        $requester = User::factory()->create(['current_team_id' => $this->team->id]);
+        $requester = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
         $incomingRequest = EmailAccessRequest::factory()->pending()->create([
             'owner_id' => $this->user->id,
@@ -63,12 +63,12 @@ describe('Tab switching', function (): void {
         ]);
 
         $requesterAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $requester->id,
         ]));
 
         $otherEmail = Email::factory()->private()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $requester->id,
             'connected_account_id' => $requesterAccount->getKey(),
         ]);
@@ -85,7 +85,7 @@ describe('Tab switching', function (): void {
     });
 
     it('shows outgoing requests after switching to outgoing tab', function (): void {
-        $requester = User::factory()->create(['current_team_id' => $this->team->id]);
+        $requester = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
         $incomingRequest = EmailAccessRequest::factory()->pending()->create([
             'owner_id' => $this->user->id,
@@ -94,12 +94,12 @@ describe('Tab switching', function (): void {
         ]);
 
         $requesterAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $requester->id,
         ]));
 
         $otherEmail = Email::factory()->private()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $requester->id,
             'connected_account_id' => $requesterAccount->getKey(),
         ]);
@@ -120,8 +120,8 @@ describe('Tab switching', function (): void {
 
 describe('approveAccessRequest action', function (): void {
     it('approves a pending request and sends a notification', function (): void {
-        $requester = User::factory()->create(['current_team_id' => $this->team->id]);
-        $this->team->users()->attach($requester, ['role' => 'editor']);
+        $requester = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+        $this->workspace->users()->attach($requester, ['role' => 'editor']);
 
         $request = EmailAccessRequest::factory()->pending()->create([
             'owner_id' => $this->user->id,
@@ -140,11 +140,11 @@ describe('approveAccessRequest action', function (): void {
     });
 
     it('does nothing when a non-owner passes a request id', function (): void {
-        $owner = User::factory()->create(['current_team_id' => $this->team->id]);
-        $requester = User::factory()->create(['current_team_id' => $this->team->id]);
+        $owner = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+        $requester = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
         $otherEmail = Email::factory()->private()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $owner->id,
             'connected_account_id' => $this->account->getKey(),
         ]);
@@ -164,7 +164,7 @@ describe('approveAccessRequest action', function (): void {
 
 describe('denyAccessRequest action', function (): void {
     it('denies a pending request and sends a notification', function (): void {
-        $requester = User::factory()->create(['current_team_id' => $this->team->id]);
+        $requester = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
         $request = EmailAccessRequest::factory()->pending()->create([
             'owner_id' => $this->user->id,
@@ -183,11 +183,11 @@ describe('denyAccessRequest action', function (): void {
     });
 
     it('does nothing when a non-owner passes a request id', function (): void {
-        $owner = User::factory()->create(['current_team_id' => $this->team->id]);
-        $requester = User::factory()->create(['current_team_id' => $this->team->id]);
+        $owner = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+        $requester = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
         $otherEmail = Email::factory()->private()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $owner->id,
             'connected_account_id' => $this->account->getKey(),
         ]);
@@ -207,15 +207,15 @@ describe('denyAccessRequest action', function (): void {
 
 describe('cancelAccessRequest action', function (): void {
     it('deletes a pending outgoing request', function (): void {
-        $owner = User::factory()->create(['current_team_id' => $this->team->id]);
+        $owner = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
         $ownerAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $owner->id,
         ]));
 
         $otherEmail = Email::factory()->private()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $owner->id,
             'connected_account_id' => $ownerAccount->getKey(),
         ]);
@@ -239,16 +239,16 @@ describe('cancelAccessRequest action', function (): void {
     });
 
     it('does nothing when a non-requester passes a request id', function (): void {
-        $owner = User::factory()->create(['current_team_id' => $this->team->id]);
-        $requester = User::factory()->create(['current_team_id' => $this->team->id]);
+        $owner = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+        $requester = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
         $ownerAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $owner->id,
         ]));
 
         $otherEmail = Email::factory()->private()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $owner->id,
             'connected_account_id' => $ownerAccount->getKey(),
         ]);
@@ -267,15 +267,15 @@ describe('cancelAccessRequest action', function (): void {
     });
 
     it('does not delete an approved request', function (): void {
-        $owner = User::factory()->create(['current_team_id' => $this->team->id]);
+        $owner = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
         $ownerAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $owner->id,
         ]));
 
         $otherEmail = Email::factory()->private()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $owner->id,
             'connected_account_id' => $ownerAccount->getKey(),
         ]);
@@ -297,7 +297,7 @@ describe('cancelAccessRequest action', function (): void {
 
 describe('getNavigationBadge', function (): void {
     it('returns the count of pending incoming requests as a string', function (): void {
-        $requester = User::factory()->create(['current_team_id' => $this->team->id]);
+        $requester = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
         EmailAccessRequest::factory()->pending()->create([
             'owner_id' => $this->user->id,
@@ -319,7 +319,7 @@ describe('getNavigationBadge', function (): void {
     });
 
     it('does not count approved or denied requests', function (): void {
-        $requester = User::factory()->create(['current_team_id' => $this->team->id]);
+        $requester = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
         EmailAccessRequest::factory()->approved()->create([
             'owner_id' => $this->user->id,
@@ -337,7 +337,7 @@ describe('getNavigationBadge', function (): void {
     });
 
     it('does not count outgoing pending requests in the badge', function (): void {
-        $owner = User::factory()->create(['current_team_id' => $this->team->id]);
+        $owner = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
         EmailAccessRequest::factory()->pending()->create([
             'owner_id' => $owner->id,
@@ -351,15 +351,15 @@ describe('getNavigationBadge', function (): void {
 
 describe('subject privacy', function (): void {
     it('hides the email subject on outgoing requests when the viewer cannot see it', function (): void {
-        $owner = User::factory()->create(['current_team_id' => $this->team->id]);
+        $owner = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
         $ownerAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $owner->id,
         ]));
 
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $owner->id,
             'connected_account_id' => $ownerAccount->getKey(),
             'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -380,15 +380,15 @@ describe('subject privacy', function (): void {
     });
 
     it('hides the email subject on outgoing requests after access is denied', function (): void {
-        $owner = User::factory()->create(['current_team_id' => $this->team->id]);
+        $owner = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
         $ownerAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $owner->id,
         ]));
 
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $owner->id,
             'connected_account_id' => $ownerAccount->getKey(),
             'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -409,15 +409,15 @@ describe('subject privacy', function (): void {
     });
 
     it('shows the email subject on outgoing requests after access is approved', function (): void {
-        $owner = User::factory()->create(['current_team_id' => $this->team->id]);
+        $owner = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
         $ownerAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $owner->id,
         ]));
 
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $owner->id,
             'connected_account_id' => $ownerAccount->getKey(),
             'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -432,7 +432,7 @@ describe('subject privacy', function (): void {
 
         EmailShare::factory()->tier(EmailPrivacyTier::FULL)->create([
             'email_id' => $email->getKey(),
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'shared_by' => $owner->id,
             'shared_with' => $this->user->id,
         ]);
@@ -443,15 +443,15 @@ describe('subject privacy', function (): void {
     });
 
     it('shows the email subject on outgoing requests when the viewer already has subject access', function (): void {
-        $owner = User::factory()->create(['current_team_id' => $this->team->id]);
+        $owner = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
         $ownerAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $owner->id,
         ]));
 
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $owner->id,
             'connected_account_id' => $ownerAccount->getKey(),
             'privacy_tier' => EmailPrivacyTier::SUBJECT,
@@ -470,10 +470,10 @@ describe('subject privacy', function (): void {
     });
 
     it('shows the email subject on incoming requests for the owner', function (): void {
-        $requester = User::factory()->create(['current_team_id' => $this->team->id]);
+        $requester = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->user->id,
             'connected_account_id' => $this->account->getKey(),
             'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -491,15 +491,15 @@ describe('subject privacy', function (): void {
     });
 
     it('does not match a hidden subject when searching outgoing requests', function (): void {
-        $owner = User::factory()->create(['current_team_id' => $this->team->id, 'name' => 'Pat Owner']);
+        $owner = User::factory()->create(['current_workspace_id' => $this->workspace->id, 'name' => 'Pat Owner']);
 
         $ownerAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $owner->id,
         ]));
 
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $owner->id,
             'connected_account_id' => $ownerAccount->getKey(),
             'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -521,10 +521,10 @@ describe('subject privacy', function (): void {
     });
 
     it('matches the subject when searching incoming requests as the owner', function (): void {
-        $requester = User::factory()->create(['current_team_id' => $this->team->id]);
+        $requester = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->user->id,
             'connected_account_id' => $this->account->getKey(),
             'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,

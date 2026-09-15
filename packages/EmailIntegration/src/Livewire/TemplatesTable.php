@@ -36,7 +36,7 @@ final class TemplatesTable extends Component implements HasActions, HasSchemas, 
 
         return EmailTemplateResource::table($table)
             ->query(fn () => EmailTemplateResource::getEloquentQuery()
-                ->where('team_id', filament()->getTenant()?->getKey()))
+                ->where('workspace_id', filament()->getTenant()?->getKey()))
             ->headerActions([$createTemplate])
             ->emptyStateHeading(__('filament/resources/email-template.empty.heading'))
             ->emptyStateDescription(__('filament/resources/email-template.empty.description'))
@@ -52,7 +52,7 @@ final class TemplatesTable extends Component implements HasActions, HasSchemas, 
             ->icon('heroicon-o-plus')
             ->schema(fn (Schema $schema): Schema => EmailTemplateResource::form($schema))
             ->mutateFormDataUsing(function (array $data): array {
-                $data['team_id'] = filament()->getTenant()?->getKey();
+                $data['workspace_id'] = filament()->getTenant()?->getKey();
                 $data['created_by'] = auth()->id();
 
                 return $data;

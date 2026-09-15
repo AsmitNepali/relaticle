@@ -31,14 +31,14 @@ use function Pest\Laravel\actingAs;
 mutates(EmailInboxPage::class, AccessRequestsTable::class, DraftsTable::class, TemplatesTable::class, EmailPageTab::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
-    $this->team = $this->user->currentTeam;
+    $this->user = User::factory()->withWorkspace()->create();
+    $this->workspace = $this->user->currentWorkspace;
     actingAs($this->user);
     Filament::setCurrentPanel(Filament::getPanel('app'));
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'status' => 'active',
     ]));
@@ -47,7 +47,7 @@ beforeEach(function (): void {
 function makeDraft(User $user, ConnectedAccount $account, array $overrides = []): Email
 {
     return Email::query()->create(array_merge([
-        'team_id' => $user->currentTeam->id,
+        'workspace_id' => $user->currentWorkspace->id,
         'user_id' => $user->id,
         'connected_account_id' => $account->id,
         'subject' => 'Half-written pitch',
@@ -89,7 +89,7 @@ it('counts drafts, pending outbox mail and available templates for the tab badge
     makeDraft($this->user, $this->account, ['subject' => 'Second draft']);
 
     Email::query()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'subject' => 'Waiting to go out',
@@ -100,7 +100,7 @@ it('counts drafts, pending outbox mail and available templates for the tab badge
     ]);
 
     Email::query()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'subject' => 'Could not be delivered',
@@ -111,7 +111,7 @@ it('counts drafts, pending outbox mail and available templates for the tab badge
     ]);
 
     EmailTemplate::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
         'is_shared' => false,
     ]);
@@ -145,7 +145,7 @@ it('refreshes the tab badges when the composer saves a draft', function (): void
 
 it('refreshes the outbox and failed badges when a failed email is retried', function (): void {
     $failed = Email::query()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'subject' => 'Retry me',
@@ -172,7 +172,7 @@ it('refreshes the outbox and failed badges when a failed email is retried', func
 
 it('does not mark an email as read when the page is loaded on another tab', function (): void {
     $email = Email::factory()->inbound()->full()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'sent_at' => now(),
@@ -188,7 +188,7 @@ it('does not mark an email as read when the page is loaded on another tab', func
 
 it('saves an email privacy tier from the sharing cards', function (): void {
     $email = Email::factory()->inbound()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -282,9 +282,9 @@ it('lists drafts even when the mailbox cannot send', function (): void {
 it('lists only the signed-in user\'s own drafts', function (): void {
     $mine = makeDraft($this->user, $this->account);
 
-    $teammate = User::factory()->create(['current_team_id' => $this->team->id]);
+    $teammate = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
     $theirAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $teammate->id,
         'status' => 'active',
     ]));
@@ -336,13 +336,13 @@ it('shows create on the templates empty state', function (): void {
 
 it('lists shared and own templates in the templates tab', function (): void {
     $mine = EmailTemplate::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
         'is_shared' => false,
     ]);
 
     $foreign = EmailTemplate::factory()->create([
-        'team_id' => User::factory()->withTeam()->create()->current_team_id,
+        'workspace_id' => User::factory()->withWorkspace()->create()->current_workspace_id,
         'is_shared' => true,
     ]);
 

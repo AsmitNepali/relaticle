@@ -23,7 +23,7 @@ final readonly class SetDefaultConnectedAccountAction
         DB::transaction(function () use ($account): void {
             ConnectedAccount::query()
                 ->where('user_id', $account->user_id)
-                ->where('team_id', $account->team_id)
+                ->where('workspace_id', $account->workspace_id)
                 ->where('is_default', true)
                 ->whereKeyNot($account->getKey())
                 ->update(['is_default' => false]);

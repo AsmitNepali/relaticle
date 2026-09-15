@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Actions;
 
-use App\Enums\TeamRole;
-use App\Models\Team;
+use App\Enums\WorkspaceRole;
 use App\Models\User;
+use App\Models\Workspace;
 use Relaticle\EmailIntegration\Models\ProtectedRecipient;
 
 final readonly class UpdateTeamProtectedRecipientsAction
@@ -15,14 +15,14 @@ final readonly class UpdateTeamProtectedRecipientsAction
      * @param  array<int, string>  $protectedEmails
      * @param  array<int, string>  $protectedDomains
      */
-    public function execute(Team $team, User $actor, array $protectedEmails, array $protectedDomains): void
+    public function execute(Workspace $team, User $actor, array $protectedEmails, array $protectedDomains): void
     {
         abort_unless(
-            $actor->ownsTeam($team) || $actor->hasTeamRole($team, TeamRole::Admin->value),
+            $actor->ownsWorkspace($team) || $actor->hasWorkspaceRole($team, WorkspaceRole::Admin->value),
             403,
         );
 
-        ProtectedRecipient::query()->where('team_id', $team->getKey())->delete();
+        ProtectedRecipient::query()->where('workspace_id', $team->getKey())->delete();
 
         foreach ($protectedEmails as $email) {
             if (blank($email)) {
@@ -30,7 +30,7 @@ final readonly class UpdateTeamProtectedRecipientsAction
             }
 
             ProtectedRecipient::query()->create([
-                'team_id' => $team->getKey(),
+                'workspace_id' => $team->getKey(),
                 'type' => 'email',
                 'value' => strtolower(trim($email)),
                 'created_by' => $actor->getKey(),
@@ -43,7 +43,7 @@ final readonly class UpdateTeamProtectedRecipientsAction
             }
 
             ProtectedRecipient::query()->create([
-                'team_id' => $team->getKey(),
+                'workspace_id' => $team->getKey(),
                 'type' => 'domain',
                 'value' => strtolower(trim($domain)),
                 'created_by' => $actor->getKey(),

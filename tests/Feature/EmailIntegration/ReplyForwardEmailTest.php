@@ -27,32 +27,33 @@ use Relaticle\EmailIntegration\Models\Email;
 use Relaticle\EmailIntegration\Models\EmailAttachment;
 use Relaticle\EmailIntegration\Models\EmailBody;
 use Relaticle\EmailIntegration\Models\EmailParticipant;
+use Relaticle\EmailIntegration\Services\ForwardAttachmentCopyService;
 use Relaticle\EmailIntegration\Support\QueuedSendNotifier;
 use Tests\Helpers\AllowedComposerRecipient;
 
-mutates(EmailsRelationManager::class, EmailInboxPage::class, EmailComposer::class, Email::class, HasEmailComposeActions::class, RedirectsToGrantSend::class, ConnectedAccount::class, QueuedSendNotifier::class, SendEmailAction::class, SaveEmailDraftAction::class);
+mutates(EmailsRelationManager::class, EmailInboxPage::class, EmailComposer::class, Email::class, HasEmailComposeActions::class, RedirectsToGrantSend::class, ConnectedAccount::class, QueuedSendNotifier::class, SendEmailAction::class, SaveEmailDraftAction::class, ForwardAttachmentCopyService::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'email_address' => 'me@example.com',
         'display_name' => 'Me',
     ]));
 
     $this->person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Jane Doe',
         'creator_id' => $this->user->id,
     ]);
 
     $this->inboundEmail = Email::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'subject' => 'Original Subject',
@@ -216,11 +217,11 @@ it('reply_all recipients keep the original sender and drop the user\'s own addre
 });
 
 it('inline composer prefills the original subject only when the viewer may see it', function (EmailPrivacyTier $tier, string $expectedSubject): void {
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
-    $this->team->users()->attach($viewer, ['role' => 'editor']);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->users()->attach($viewer, ['role' => 'editor']);
 
     ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $viewer->id,
         'status' => 'active',
     ]));
@@ -452,6 +453,69 @@ it('includes the original plain-text body when forwarding from the inbox', funct
         ->toContain('---------- Forwarded message ----------');
 });
 
+it('includes the original attachments when forwarding from the relation manager modal', function (): void {
+    Storage::fake(EmailAttachment::DISK);
+
+    $attachment = inboundStoredAttachment($this->inboundEmail, 'contract.pdf', 'signed-contract');
+
+    livewire(EmailsRelationManager::class, [
+        'ownerRecord' => $this->person,
+        'pageClass' => ViewPeople::class,
+    ])
+        ->callAction(
+            'replyForwardEmail',
+            data: [
+                'connected_account_id' => $this->account->id,
+                'to' => ['forward-to@example.com'],
+                'cc' => [],
+                'bcc' => [],
+                'subject' => 'Fwd: Original Subject',
+                'body_html' => '<p>See attached contract</p>',
+            ],
+            arguments: ['emailId' => $this->inboundEmail->id, 'mode' => 'forward'],
+        );
+
+    $forward = Email::query()
+        ->where('direction', EmailDirection::OUTBOUND)
+        ->where('creation_source', EmailCreationSource::FORWARD)
+        ->sole();
+
+    $sentAttachment = $forward->attachments->sole();
+
+    expect($sentAttachment->filename)->toBe('contract.pdf')
+        ->and($sentAttachment->storage_path)->not->toBe($attachment->storage_path);
+
+    Storage::disk(EmailAttachment::DISK)->assertExists((string) $sentAttachment->storage_path);
+    expect(Storage::disk(EmailAttachment::DISK)->get((string) $sentAttachment->storage_path))->toBe('signed-contract');
+});
+
+it('includes the original attachments when forwarding from the inbox modal', function (): void {
+    Storage::fake(EmailAttachment::DISK);
+
+    inboundStoredAttachment($this->inboundEmail, 'contract.pdf', 'signed-contract');
+
+    livewire(EmailInboxPage::class)
+        ->callAction(
+            'replyForwardEmail',
+            data: [
+                'connected_account_id' => $this->account->id,
+                'to' => ['forward-to@example.com'],
+                'cc' => [],
+                'bcc' => [],
+                'subject' => 'Fwd: Original Subject',
+                'body_html' => '<p>See attached contract</p>',
+            ],
+            arguments: ['emailId' => $this->inboundEmail->id, 'mode' => 'forward'],
+        );
+
+    $forward = Email::query()
+        ->where('direction', EmailDirection::OUTBOUND)
+        ->where('creation_source', EmailCreationSource::FORWARD)
+        ->sole();
+
+    expect($forward->attachments->sole()->filename)->toBe('contract.pdf');
+});
+
 it('a forward saved as a draft keeps its source without threading against it', function (): void {
     livewire(EmailComposer::class, ['dock' => 'inline'])
         ->call('openReply', $this->inboundEmail->id, 'forward')
@@ -591,11 +655,11 @@ it('does not list original attachments when the viewer cannot read the body', fu
 
     inboundStoredAttachment($this->inboundEmail, 'contract.pdf', 'signed-contract');
 
-    $viewer = User::factory()->create(['current_team_id' => $this->team->id]);
-    $this->team->users()->attach($viewer, ['role' => 'editor']);
+    $viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->users()->attach($viewer, ['role' => 'editor']);
 
     ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $viewer->id,
         'status' => 'active',
     ]));
@@ -729,7 +793,7 @@ it('includes a newly uploaded file alongside the original attachments on a forwa
 
 it('the docked composer closes when the reader moves to another email', function (): void {
     $other = Email::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'subject' => 'Another Subject',
@@ -859,7 +923,7 @@ it('redirects to oauth when grant permission is confirmed from a record emails p
     $component = livewire(PeopleEmailsPage::class, ['record' => $this->person->getKey()])
         ->callAction('grantSendPermission');
 
-    assertRedirectedToMailboxOAuth($component, 'gmail', $this->account->team);
+    assertRedirectedToMailboxOAuth($component, 'gmail', $this->account->workspace);
 });
 
 it('opens the grant permission empty state when replying from a mailbox that cannot send', function (): void {
@@ -931,7 +995,7 @@ it('redirects to oauth when grant permission is confirmed for a mailbox that nee
     $component = livewire(PeopleEmailsPage::class, ['record' => $this->person->getKey()])
         ->callAction('grantSendPermission');
 
-    assertRedirectedToMailboxOAuth($component, 'gmail', $this->account->team);
+    assertRedirectedToMailboxOAuth($component, 'gmail', $this->account->workspace);
 });
 
 function inboundStoredAttachment(Email $email, string $filename, string $contents, bool $inline = false, ?string $contentId = null): EmailAttachment

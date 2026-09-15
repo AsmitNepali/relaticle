@@ -68,14 +68,14 @@ it('does not register outbox or sync schedules when email integration is inactiv
 it('dispatches incremental email sync jobs only for active accounts with a cursor', function (): void {
     Bus::fake([IncrementalEmailSyncJob::class]);
 
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $withCursor = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $user->currentTeam->id,
+        'workspace_id' => $user->currentWorkspace->id,
         'user_id' => $user->id,
         'sync_cursor' => 'cursor-1',
     ]));
     $withoutCursor = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $user->currentTeam->id,
+        'workspace_id' => $user->currentWorkspace->id,
         'user_id' => $user->id,
         'sync_cursor' => null,
     ]));
@@ -89,14 +89,14 @@ it('dispatches incremental email sync jobs only for active accounts with a curso
 it('dispatches incremental calendar sync jobs only for accounts with calendar enabled', function (): void {
     Bus::fake([IncrementalCalendarSyncJob::class]);
 
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $withCalendar = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $user->currentTeam->id,
+        'workspace_id' => $user->currentWorkspace->id,
         'user_id' => $user->id,
         'capabilities' => ['calendar' => true],
     ]));
     $withoutCalendar = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $user->currentTeam->id,
+        'workspace_id' => $user->currentWorkspace->id,
         'user_id' => $user->id,
         'capabilities' => ['calendar' => false],
     ]));

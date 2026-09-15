@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\People;
-use App\Models\Team;
+use App\Models\Workspace;
 use Illuminate\Support\Facades\Date;
 use Relaticle\EmailIntegration\Actions\LinkMeetingAction;
 use Relaticle\EmailIntegration\Actions\LinkMeetingToRecordAction;
@@ -15,10 +15,10 @@ mutates(LinkMeetingToRecordAction::class, LinkMeetingAction::class);
 it('creates a manual link row', function (): void {
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create());
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
     ]);
-    $person = People::factory()->for($meeting->team)->create();
+    $person = People::factory()->for($meeting->workspace)->create();
 
     (app(LinkMeetingToRecordAction::class))->execute($meeting, $person);
 
@@ -29,11 +29,11 @@ it('creates a manual link row', function (): void {
 it('refuses to link a record from another team', function (): void {
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create());
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
     ]);
     // A person owned by a DIFFERENT team — the cross-tenant IDOR target.
-    $foreignPerson = People::factory()->for(Team::factory()->create())->create();
+    $foreignPerson = People::factory()->for(Workspace::factory()->create())->create();
 
     expect(fn () => app(LinkMeetingToRecordAction::class)->execute($meeting, $foreignPerson))
         ->toThrow(InvalidArgumentException::class);
@@ -44,10 +44,10 @@ it('refuses to link a record from another team', function (): void {
 it('is idempotent', function (): void {
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create());
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
     ]);
-    $person = People::factory()->for($meeting->team)->create();
+    $person = People::factory()->for($meeting->workspace)->create();
 
     (app(LinkMeetingToRecordAction::class))->execute($meeting, $person);
     (app(LinkMeetingToRecordAction::class))->execute($meeting, $person);
@@ -60,11 +60,11 @@ it('increments meeting metrics on a new manual link', function (): void {
         'email_address' => 'owner@acmecorp.com',
     ]));
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
         'organizer_email' => 'guest@clientcorp.com',
     ]);
-    $person = People::factory()->for($meeting->team)->create([
+    $person = People::factory()->for($meeting->workspace)->create([
         'meeting_count' => 0,
         'last_meeting_at' => null,
         'last_interaction_at' => null,
@@ -84,11 +84,11 @@ it('does not double-count metrics when the same manual link is applied twice', f
         'email_address' => 'owner@acmecorp.com',
     ]));
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
         'organizer_email' => 'guest@clientcorp.com',
     ]);
-    $person = People::factory()->for($meeting->team)->create(['meeting_count' => 0]);
+    $person = People::factory()->for($meeting->workspace)->create(['meeting_count' => 0]);
 
     $action = app(LinkMeetingToRecordAction::class);
     $action->execute($meeting, $person);
@@ -102,11 +102,11 @@ it('does not double-count metrics when automatic linking runs after a manual lin
         'email_address' => 'owner@acmecorp.com',
     ]));
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
         'organizer_email' => 'guest@clientcorp.com',
     ]);
-    $person = People::factory()->for($meeting->team)->create(['meeting_count' => 0]);
+    $person = People::factory()->for($meeting->workspace)->create(['meeting_count' => 0]);
 
     app(LinkMeetingToRecordAction::class)->execute($meeting, $person);
     app(LinkMeetingAction::class)->execute($meeting->fresh());

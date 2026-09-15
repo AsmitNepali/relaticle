@@ -247,7 +247,7 @@ final class EmailAccountSettingsPage extends Page implements HasSchemas
         /** @var User $user */
         $user = auth()->user();
 
-        $workspaceTier = $user->currentTeam->default_email_sharing_tier ?? EmailPrivacyTier::METADATA_ONLY;
+        $workspaceTier = $user->currentWorkspace->default_email_sharing_tier ?? EmailPrivacyTier::METADATA_ONLY;
 
         return ViewField::make('default_email_sharing_tier')
             ->label($this->labelWithInfo(__('filament/pages/email-account-settings.sharing.label'), __('filament/pages/email-account-settings.sharing.hint')))
@@ -539,13 +539,15 @@ final class EmailAccountSettingsPage extends Page implements HasSchemas
         return Action::make('save')
             ->label(__('filament/pages/email-account-settings.actions.save'))
             ->requiresConfirmation(fn (): bool => $this->accountSharingTierChanged())
-            ->modalHeading(SharingTierChangeConfirmation::modalHeading())
-            ->modalDescription(fn (): string => SharingTierChangeConfirmation::modalDescription(
-                $this->resolvedAccountSharingTier(),
-            ))
-            ->schema(fn (): array => SharingTierChangeConfirmation::schema(
-                $this->resolvedAccountSharingTier(),
-            ))
+            ->modalHeading(fn (): ?string => $this->accountSharingTierChanged()
+                ? SharingTierChangeConfirmation::modalHeading()
+                : null)
+            ->modalDescription(fn (): ?string => $this->accountSharingTierChanged()
+                ? SharingTierChangeConfirmation::modalDescription($this->resolvedAccountSharingTier())
+                : null)
+            ->schema(fn (): array => $this->accountSharingTierChanged()
+                ? SharingTierChangeConfirmation::schema($this->resolvedAccountSharingTier())
+                : [])
             ->action(function (
                 UpdateConnectedAccountSettingsAction $updateSettings,
             ): void {
@@ -554,21 +556,16 @@ final class EmailAccountSettingsPage extends Page implements HasSchemas
                 /** @var User $user */
                 $user = auth()->user();
 
-                $sharingTierChanged = $this->accountSharingTierChanged();
+                $sharingPreferenceChanged = $this->accountSharingPreferenceChanged();
 
                 $updateSettings->execute($this->account(), $data);
 
-                if ($sharingTierChanged) {
+                if ($sharingPreferenceChanged) {
                     $tier = $data['default_email_sharing_tier'] ?? null;
-                    $storedTier = match (true) {
-                        $tier instanceof EmailPrivacyTier => $tier,
-                        filled($tier) => EmailPrivacyTier::from((string) $tier),
-                        default => null,
-                    };
 
                     resolve(SaveUserEmailSharingDefaultAction::class)->execute(
                         $user,
-                        $storedTier,
+                        $this->storedSharingTierFromForm($tier),
                         $this->privacy()->tierFromPreference($tier, $user),
                     );
                 }
@@ -588,6 +585,26 @@ final class EmailAccountSettingsPage extends Page implements HasSchemas
         $user = auth()->user();
 
         return $this->resolvedAccountSharingTier() !== $this->privacy()->effectiveSharingTierForUser($user);
+    }
+
+    private function accountSharingPreferenceChanged(): bool
+    {
+        /** @var User $user */
+        $user = auth()->user();
+
+        $data = $this->form->getState();
+
+        return $this->storedSharingTierFromForm($data['default_email_sharing_tier'] ?? null)
+            !== $user->default_email_sharing_tier;
+    }
+
+    private function storedSharingTierFromForm(mixed $tierValue): ?EmailPrivacyTier
+    {
+        return match (true) {
+            $tierValue instanceof EmailPrivacyTier => $tierValue,
+            filled($tierValue) => EmailPrivacyTier::from((string) $tierValue),
+            default => null,
+        };
     }
 
     private function resolvedAccountSharingTier(): EmailPrivacyTier
@@ -613,7 +630,7 @@ final class EmailAccountSettingsPage extends Page implements HasSchemas
         return EmailSignature::query()
             ->where('connected_account_id', $this->account()->getKey())
             ->where('user_id', $this->account()->user_id)
-            ->where('team_id', $this->account()->team_id);
+            ->where('workspace_id', $this->account()->workspace_id);
     }
 
     /**

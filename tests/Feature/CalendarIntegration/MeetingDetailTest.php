@@ -31,15 +31,15 @@ use Relaticle\EmailIntegration\Services\TeamMemberDirectory;
 mutates(MeetingsRelationManager::class, MeetingDetailInfolist::class, MeetingAttendeeEntry::class, MeetingLinkedRecordsEntry::class, MeetingAttendeePresenter::class, TeamMemberDirectory::class, MailboxDisplayNameDirectory::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
     Filament::setCurrentPanel(Filament::getPanel('app'));
 
     $this->account = ConnectedAccount::withoutEvents(
         fn () => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->user->id,
         ])
     );
@@ -51,7 +51,7 @@ it('removes the standalone meetings route', function (): void {
 
 it('lists meetings for the current team', function (): void {
     $mine = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
 
@@ -61,13 +61,13 @@ it('lists meetings for the current team', function (): void {
 
 it('filters upcoming meetings', function (): void {
     $future = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'starts_at' => Date::now()->addDays(2),
         'ends_at' => Date::now()->addDays(2)->addHour(),
     ]);
     $past = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'starts_at' => Date::now()->subDays(2),
         'ends_at' => Date::now()->subDays(2)->addHour(),
@@ -82,7 +82,7 @@ it('filters upcoming meetings', function (): void {
 it('shows title, time range, duration, and rsvp in the view modal', function (): void {
     $starts = Date::parse('2026-09-30 05:30:00');
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'New Meeting',
         'starts_at' => $starts,
@@ -111,7 +111,7 @@ it('shows title, time range, duration, and rsvp in the view modal', function ():
 it('shows all-day meetings without a clock range', function (): void {
     $starts = Date::parse('2026-09-30 00:00:00');
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Offsite',
         'starts_at' => $starts,
@@ -130,7 +130,7 @@ it('shows all-day meetings without a clock range', function (): void {
 it('hides the rsvp pill when response status is null', function (): void {
     $starts = Date::parse('2026-09-30 05:30:00');
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'No RSVP Meeting',
         'starts_at' => $starts,
@@ -147,7 +147,7 @@ it('hides the rsvp pill when response status is null', function (): void {
 
 it('hides link, location, and description when they are empty', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'html_link' => null,
         'location' => null,
@@ -164,7 +164,7 @@ it('hides link, location, and description when they are empty', function (): voi
 
 it('lists attendees with host and rsvp in the view modal', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
 
@@ -198,7 +198,7 @@ it('lists attendees with host and rsvp in the view modal', function (): void {
 it('shows an empty participants line when there are no attendees', function (): void {
     $starts = Date::parse('2026-09-15 11:11:00');
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'starts_at' => $starts,
         'ends_at' => $starts->copy()->addMinutes(75),
@@ -220,7 +220,7 @@ it('shows the current user attendee row when is_self is true', function (): void
     $this->account->forceFill(['email_address' => 'oliver@relaticle.test'])->save();
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
 
@@ -254,7 +254,7 @@ it('does not name a self attendee from the workspace user when the mailbox addre
     ])->save();
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
 
@@ -285,7 +285,7 @@ it('keeps the calendar name for a guest on a different connected mailbox', funct
     ])->save();
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
 
@@ -307,10 +307,10 @@ it('keeps the calendar name for a guest on a different connected mailbox', funct
 
 it('shows the linked person name above the attendee email', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
-    $person = People::factory()->for($this->team)->create(['name' => 'Maya Chen']);
+    $person = People::factory()->for($this->workspace)->create(['name' => 'Maya Chen']);
 
     MeetingAttendee::factory()->create([
         'meeting_id' => $meeting->id,
@@ -331,7 +331,7 @@ it('shows the linked person name above the attendee email', function (): void {
 
 it('shows the address itself rather than inventing a name from the email', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
 
@@ -353,11 +353,11 @@ it('shows the address itself rather than inventing a name from the email', funct
 
 it('names a guest from mailbox history without a person record', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
     $mail = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
     ]);
@@ -385,14 +385,14 @@ it('names a guest from mailbox history without a person record', function (): vo
 
 it('ignores a linked person whose name is the email and uses the mailbox name', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
-    $person = People::factory()->for($this->team)->create([
+    $person = People::factory()->for($this->workspace)->create([
         'name' => 'mail2asmitnepali@gmail.com',
     ]);
     $mail = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
     ]);
@@ -420,15 +420,15 @@ it('ignores a linked person whose name is the email and uses the mailbox name', 
 });
 
 it('does not use another team mailbox name for a guest', function (): void {
-    $stranger = User::factory()->withTeam()->create();
+    $stranger = User::factory()->withWorkspace()->create();
     $strangerAccount = ConnectedAccount::withoutEvents(
         fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-            'team_id' => $stranger->currentTeam->id,
+            'workspace_id' => $stranger->currentWorkspace->id,
             'user_id' => $stranger->id,
         ]),
     );
     $mail = Email::factory()->create([
-        'team_id' => $stranger->currentTeam->id,
+        'workspace_id' => $stranger->currentWorkspace->id,
         'user_id' => $stranger->id,
         'connected_account_id' => $strangerAccount->id,
     ]);
@@ -439,7 +439,7 @@ it('does not use another team mailbox name for a guest', function (): void {
     ]);
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
     MeetingAttendee::factory()->create([
@@ -458,13 +458,13 @@ it('does not use another team mailbox name for a guest', function (): void {
 
 it('uses the most common mailbox name for a guest', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
 
     foreach (['Rare Guest', 'Asmit Nepali', 'Asmit Nepali'] as $name) {
         $mail = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->user->id,
             'connected_account_id' => $this->account->id,
         ]);
@@ -491,7 +491,7 @@ it('uses the most common mailbox name for a guest', function (): void {
 
 it('shows link, location, and description when they are filled', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'html_link' => 'https://meet.example.test/abc',
         'location' => 'Rooftop Terrace 7B',
@@ -508,7 +508,7 @@ it('shows link, location, and description when they are filled', function (): vo
 
 it('shows an empty state when a meeting has no linked records', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
 
@@ -521,12 +521,12 @@ it('shows an empty state when a meeting has no linked records', function (): voi
 
 it('lists linked people, companies, and opportunities in the view modal', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
-    $person = People::factory()->for($this->team)->create(['name' => 'Linked Person']);
-    $company = Company::factory()->for($this->team)->create(['name' => 'Linked Co']);
-    $opportunity = Opportunity::factory()->for($this->team)->create(['name' => 'Linked Deal']);
+    $person = People::factory()->for($this->workspace)->create(['name' => 'Linked Person']);
+    $company = Company::factory()->for($this->workspace)->create(['name' => 'Linked Co']);
+    $opportunity = Opportunity::factory()->for($this->workspace)->create(['name' => 'Linked Deal']);
 
     $meeting->people()->attach($person, ['link_source' => 'manual']);
     $meeting->companies()->attach($company, ['link_source' => 'manual']);
@@ -542,7 +542,7 @@ it('lists linked people, companies, and opportunities in the view modal', functi
 
 it('offers linking additional records from the meeting drawer', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
 
@@ -555,10 +555,10 @@ it('offers linking additional records from the meeting drawer', function (): voi
 
 it('links a record from the meeting view modal', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
-    $person = People::factory()->for($this->team)->create();
+    $person = People::factory()->for($this->workspace)->create();
 
     meetingDetailsOnRecord([$meeting])
         ->callAction([
@@ -575,10 +575,10 @@ it('links a record from the meeting view modal', function (): void {
 
 it('shows a newly linked record in the open view modal without reloading the page', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
-    $person = People::factory()->for($this->team)->create(['name' => 'Fresh Link']);
+    $person = People::factory()->for($this->workspace)->create(['name' => 'Fresh Link']);
 
     meetingDetailsOnRecord([$meeting])
         ->callAction([
@@ -594,7 +594,7 @@ it('shows a newly linked record in the open view modal without reloading the pag
 
 it('labels the link record picker with the selected type', function (string $type, string $labelKey): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
 
@@ -624,13 +624,13 @@ it('labels the link record picker with the selected type', function (string $typ
 
 it('filters past meetings', function (): void {
     $future = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'starts_at' => Date::now()->addDays(2),
         'ends_at' => Date::now()->addDays(2)->addHour(),
     ]);
     $past = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'starts_at' => Date::now()->subDays(2),
         'ends_at' => Date::now()->subDays(2)->addHour(),
@@ -645,7 +645,7 @@ it('filters past meetings', function (): void {
 /** @param array<int, Meeting> $meetings */
 function meetingDetailsOnRecord(array $meetings): Testable
 {
-    $company = Company::factory()->create(['team_id' => filament()->getTenant()->getKey()]);
+    $company = Company::factory()->create(['workspace_id' => filament()->getTenant()->getKey()]);
     foreach ($meetings as $meeting) {
         $meeting->companies()->attach($company, ['link_source' => 'manual']);
     }

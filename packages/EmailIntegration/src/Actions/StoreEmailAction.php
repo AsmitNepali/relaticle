@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Actions;
 
-use App\Models\Team;
+use App\Models\Workspace;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -46,7 +46,7 @@ final readonly class StoreEmailAction
         try {
             $email = DB::transaction(function () use ($connectedAccount, $data, &$storedInlinePaths): Email {
                 $email = Email::query()->create([
-                    'team_id' => $connectedAccount->team_id,
+                    'workspace_id' => $connectedAccount->workspace_id,
                     'user_id' => $connectedAccount->user_id,
                     'connected_account_id' => $connectedAccount->getKey(),
                     'rfc_message_id' => $data->rfcMessageId,
@@ -100,9 +100,9 @@ final readonly class StoreEmailAction
 
                 // "Internal" means every participant is a member of this workspace.
                 // Membership lives in the team_user pivot (plus the owner), NOT in
-                // users.current_team_id, which only reflects a user's *active* team and
+                // users.current_workspace_id, which only reflects a user's *active* team and
                 // would misclassify members whose active team is elsewhere.
-                $team = Team::query()->find($connectedAccount->team_id);
+                $team = Workspace::query()->find($connectedAccount->workspace_id);
 
                 $teamUserEmails = ($team?->allUsers() ?? collect())
                     ->pluck('email')

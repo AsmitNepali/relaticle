@@ -179,7 +179,7 @@ it('chains the next page after the store batch completes', function (): void {
     (new InitialEmailSyncJob($account))->handle($factory);
 
     Email::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'user_id' => $account->user_id,
         'connected_account_id' => $account->getKey(),
         'provider_message_id' => 'M1',
@@ -268,7 +268,7 @@ it('sets the cursor after the last page store batch finishes', function (): void
     (new InitialEmailSyncJob($account))->handle($factory);
 
     Email::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'user_id' => $account->user_id,
         'connected_account_id' => $account->getKey(),
         'provider_message_id' => 'M1',
@@ -381,7 +381,7 @@ it('re-dispatches store jobs for missing messages before advancing the page', fu
     (new InitialEmailSyncJob($account))->handle($factory);
 
     Email::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'user_id' => $account->user_id,
         'connected_account_id' => $account->getKey(),
         'provider_message_id' => 'M1',

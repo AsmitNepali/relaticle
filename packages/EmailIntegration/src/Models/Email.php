@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Relaticle\EmailIntegration\Models;
 
 use App\Models\Company;
-use App\Models\Concerns\HasTeam;
+use App\Models\Concerns\HasWorkspace;
 use App\Models\Opportunity;
 use App\Models\People;
 use App\Models\User;
@@ -39,7 +39,7 @@ use Relaticle\EmailIntegration\Support\EmailHtmlSanitizer;
 
 /**
  * @property string $id
- * @property string $team_id
+ * @property string $workspace_id
  * @property string $user_id
  * @property string $connected_account_id
  * @property string|null $rfc_message_id
@@ -71,7 +71,7 @@ final class Email extends Model
     /**
      * @use HasFactory<EmailFactory>
      */
-    use HasFactory, HasTeam, HasUlids, SoftDeletes;
+    use HasFactory, HasUlids, HasWorkspace, SoftDeletes;
 
     protected static function newFactory(): EmailFactory
     {
@@ -79,7 +79,7 @@ final class Email extends Model
     }
 
     protected $fillable = [
-        'team_id',
+        'workspace_id',
         'user_id',
         'connected_account_id',
         'rfc_message_id',
@@ -119,9 +119,9 @@ final class Email extends Model
      * @return Builder<Email>
      */
     #[Scope]
-    protected function forTeam(Builder $query, string $teamId): Builder
+    protected function forWorkspace(Builder $query, string $teamId): Builder
     {
-        return $query->where('team_id', $teamId);
+        return $query->where('workspace_id', $teamId);
     }
 
     /**

@@ -11,33 +11,33 @@ use Relaticle\EmailIntegration\Models\Email;
 use Relaticle\EmailIntegration\Models\EmailRead;
 
 beforeEach(function (): void {
-    $this->owner = User::factory()->withTeam()->create();
-    $this->viewer = User::factory()->create(['current_team_id' => $this->owner->currentTeam->id]);
-    $this->team = $this->owner->currentTeam;
-    $this->team->users()->attach($this->viewer, ['role' => 'editor']);
+    $this->owner = User::factory()->withWorkspace()->create();
+    $this->viewer = User::factory()->create(['current_workspace_id' => $this->owner->currentWorkspace->id]);
+    $this->workspace = $this->owner->currentWorkspace;
+    $this->workspace->users()->attach($this->viewer, ['role' => 'editor']);
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
     ]));
 
     // Two inbound, fully-shared emails — visible AND unread to every teammate.
     $this->newer = Email::factory()->inbound()->full()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
         'connected_account_id' => $this->account->getKey(),
         'sent_at' => now(),
     ]);
 
     $this->older = Email::factory()->inbound()->full()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
         'connected_account_id' => $this->account->getKey(),
         'sent_at' => now()->subHour(),
     ]);
 
     $this->person = People::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'creator_id' => $this->owner->id,
     ]);
 
@@ -46,7 +46,7 @@ beforeEach(function (): void {
 
 it('lets a teammate clear their own unread count on a shared email', function (): void {
     $this->actingAs($this->viewer);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 
     // Loading the page opens nothing, so neither email is read yet.
     $page = livewire(EmailInboxPage::class);
@@ -62,7 +62,7 @@ it('lets a teammate clear their own unread count on a shared email', function ()
 it('keeps each viewer unread state independent of the owner', function (): void {
     // Viewer reads BOTH emails.
     $this->actingAs($this->viewer);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 
     $viewerPage = livewire(EmailInboxPage::class);
     $viewerPage->call('selectEmail', $this->older->getKey());
@@ -72,7 +72,7 @@ it('keeps each viewer unread state independent of the owner', function (): void 
     // The owner has opened neither, so both stay unread for them regardless of what
     // the viewer did.
     $this->actingAs($this->owner);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 
     $ownerPage = livewire(EmailInboxPage::class);
     expect($ownerPage->instance()->inboxUnreadCount())->toBe(2);
@@ -80,7 +80,7 @@ it('keeps each viewer unread state independent of the owner', function (): void 
 
 it('marks every visible unread inbox email as read for the viewer', function (): void {
     $this->actingAs($this->viewer);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 
     $page = livewire(EmailInboxPage::class);
     // Loading the page reads nothing.
@@ -95,14 +95,14 @@ it('marks every visible unread inbox email as read for the viewer', function ():
 it('does not mark emails the viewer cannot see', function (): void {
     // A private email the owner never shared — invisible to the viewer.
     $private = Email::factory()->inbound()->private()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
         'connected_account_id' => $this->account->getKey(),
         'sent_at' => now()->subDay(),
     ]);
 
     $this->actingAs($this->viewer);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 
     livewire(EmailInboxPage::class)->call('markAllAsRead');
 
@@ -111,7 +111,7 @@ it('does not mark emails the viewer cannot see', function (): void {
 
 it('leaves an already-read row untouched when marking all as read', function (): void {
     $this->actingAs($this->viewer);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 
     // Opening the newest email records the read for this viewer.
     $page = livewire(EmailInboxPage::class)->call('selectEmail', $this->newer->getKey());

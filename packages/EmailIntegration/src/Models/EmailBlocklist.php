@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Models;
 
-use App\Models\Concerns\HasTeam;
+use App\Models\Concerns\HasWorkspace;
 use App\Models\User;
 use Database\Factories\EmailBlocklistFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -22,7 +22,7 @@ final class EmailBlocklist extends Model
     /**
      * @use HasFactory<EmailBlocklistFactory>
      */
-    use HasFactory, HasTeam, HasUlids;
+    use HasFactory, HasUlids, HasWorkspace;
 
     protected static function newFactory(): EmailBlocklistFactory
     {
@@ -31,7 +31,7 @@ final class EmailBlocklist extends Model
 
     protected $fillable = [
         'user_id',
-        'team_id',
+        'workspace_id',
         'connected_account_id',
         'type',
         'value',

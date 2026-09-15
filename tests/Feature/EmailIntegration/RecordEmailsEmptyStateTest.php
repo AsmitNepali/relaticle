@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\CustomFields\CompanyField;
 use App\Enums\CustomFields\PeopleField;
-use App\Enums\TeamRole;
+use App\Enums\WorkspaceRole;
 use App\Filament\Resources\CompanyResource\Pages\CompanyEmailsPage;
 use App\Filament\Resources\CompanyResource\Pages\ViewCompany;
 use App\Filament\Resources\OpportunityResource\Pages\OpportunityEmailsPage;
@@ -37,21 +37,21 @@ use Relaticle\EmailIntegration\Services\PreferredEmailCopyService;
 mutates(BaseRecordEmailsPage::class, BaseEmailsRelationManager::class, EmailSearchService::class, EmailVisibilityService::class, HasEmailReaderActions::class, PreferredEmailCopyService::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
-    $this->team = $this->user->currentTeam;
+    $this->user = User::factory()->withWorkspace()->create();
+    $this->workspace = $this->user->currentWorkspace;
 
     $this->person = People::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'creator_id' => $this->user->id,
     ]);
 
     $this->actingAs($this->user);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 });
 
 it('shows a compose empty state when the record has no emails', function (): void {
     ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
@@ -66,7 +66,7 @@ it('shows a compose empty state when the record has no emails', function (): voi
 
 it('hides compose from the empty state when a search has no matches', function (): void {
     ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
@@ -86,17 +86,17 @@ it('keeps the connect prompt instead of compose when no mailbox is linked', func
 
 it('shows the compose empty state when the record only has hidden emails', function (): void {
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
     TeamEmailBlocklist::factory()->blocked()->email('blocked@contact.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
     ]);
 
     $email = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $account->getKey(),
         'subject' => 'Blocked thread',
@@ -120,7 +120,7 @@ it('shows the compose empty state when the record only has hidden emails', funct
 
 it('opens the composer from the emails table empty state', function (): void {
     ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
@@ -140,36 +140,36 @@ function writePersonEmail(People $person, string $emailAddress): void
 {
     $emailsField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', $person->team_id)
+        ->where('tenant_id', $person->workspace_id)
         ->where('entity_type', 'people')
         ->where('code', PeopleField::EMAILS->value)
         ->firstOrFail();
 
-    $person->saveCustomFieldValue($emailsField, [$emailAddress], $person->team);
+    $person->saveCustomFieldValue($emailsField, [$emailAddress], $person->workspace);
 }
 
 function writeCompanyDomain(Company $company, string $domain): void
 {
     $domainsField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', $company->team_id)
+        ->where('tenant_id', $company->workspace_id)
         ->where('entity_type', 'company')
         ->where('code', CompanyField::DOMAINS->value)
         ->firstOrFail();
 
-    $company->saveCustomFieldValue($domainsField, [$domain], $company->team);
+    $company->saveCustomFieldValue($domainsField, [$domain], $company->workspace);
 }
 
 it('hides the emails tab on a protected workspace-member person', function (): void {
     ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
     writePersonEmail($this->person, $this->user->email);
 
     $email = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'subject' => 'Mixed thread with a customer',
         'is_internal' => false,
@@ -200,20 +200,20 @@ it('hides the emails tab on a protected workspace-member person', function (): v
 
 it('still shows a mixed thread on an unprotected company', function (): void {
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
     writePersonEmail($this->person, $this->user->email);
 
     $company = Company::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'creator_id' => $this->user->id,
     ]);
     writeCompanyDomain($company, 'https://acme.com');
 
     $email = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $account->getKey(),
         'subject' => 'Visible on the customer record',
@@ -246,23 +246,23 @@ it('still shows a mixed thread on an unprotected company', function (): void {
 
 it('hides the emails tab on a company whose domain is protected', function (): void {
     ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
     $company = Company::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'creator_id' => $this->user->id,
     ]);
     writeCompanyDomain($company, 'https://secret.example');
 
     TeamEmailBlocklist::factory()->protected()->domain('secret.example')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
     ]);
 
     $email = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'subject' => 'Should not appear on the protected company',
         'is_internal' => false,
@@ -276,19 +276,19 @@ it('hides the emails tab on a company whose domain is protected', function (): v
 
 it('omits the emails header badge on a company whose domain is protected', function (): void {
     $company = Company::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'creator_id' => $this->user->id,
         'email_count' => 4,
     ]);
     writeCompanyDomain($company, 'https://secret.example');
 
     TeamEmailBlocklist::factory()->protected()->domain('secret.example')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
     ]);
 
     $email = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'is_internal' => false,
     ]);
@@ -304,31 +304,31 @@ it('omits the emails header badge on a company whose domain is protected', funct
 
 it('hides the emails tab from a teammate when the company domain is protected', function (): void {
     $teammate = User::factory()->create();
-    $teammate->teams()->attach($this->team, ['role' => TeamRole::Editor->value]);
-    $teammate->forceFill(['current_team_id' => $this->team->id])->save();
+    $teammate->workspaces()->attach($this->workspace, ['role' => WorkspaceRole::Editor->value]);
+    $teammate->forceFill(['current_workspace_id' => $this->workspace->id])->save();
 
     ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
     ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $teammate->id,
     ]));
 
     $company = Company::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'creator_id' => $this->user->id,
     ]);
     writeCompanyDomain($company, 'https://secret.example');
 
     TeamEmailBlocklist::factory()->protected()->domain('secret.example')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
     ]);
 
     $email = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'subject' => 'Hidden from the team on this record',
         'is_internal' => false,
@@ -342,7 +342,7 @@ it('hides the emails tab from a teammate when the company domain is protected', 
     $company->emails()->attach($email->getKey());
 
     $this->actingAs($teammate);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 
     livewire(CompanyEmailsPage::class, ['record' => $company->getKey()])
         ->assertSee(__('filament/pages/record-emails.protected.heading'))
@@ -353,7 +353,7 @@ it('hides the emails tab from a teammate when the company domain is protected', 
 
 it('hides the emails table on a protected person', function (): void {
     ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
@@ -370,18 +370,18 @@ it('hides the emails table on a protected person', function (): void {
 
 it('hides the emails table from a teammate on a protected person', function (): void {
     $teammate = User::factory()->create();
-    $teammate->teams()->attach($this->team, ['role' => TeamRole::Editor->value]);
-    $teammate->forceFill(['current_team_id' => $this->team->id])->save();
+    $teammate->workspaces()->attach($this->workspace, ['role' => WorkspaceRole::Editor->value]);
+    $teammate->forceFill(['current_workspace_id' => $this->workspace->id])->save();
 
     ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $teammate->id,
     ]));
 
     writePersonEmail($this->person, $this->user->email);
 
     $this->actingAs($teammate);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 
     livewire(EmailsRelationManager::class, [
         'ownerRecord' => $this->person,
@@ -393,19 +393,19 @@ it('hides the emails table from a teammate on a protected person', function (): 
 
 it('hides the emails tab on a custom protected person', function (): void {
     ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
     TeamEmailBlocklist::factory()->protected()->email('legal@acme.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
     ]);
 
     writePersonEmail($this->person, 'legal@acme.com');
 
     $email = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'subject' => 'Counsel thread with a customer',
         'is_internal' => false,
@@ -433,19 +433,19 @@ it('hides the emails tab on a custom protected person', function (): void {
 
 it('hides the emails tab on a blocked person', function (): void {
     ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
     TeamEmailBlocklist::factory()->blocked()->email('blocked@contact.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
     ]);
 
     writePersonEmail($this->person, 'blocked@contact.com');
 
     $email = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'subject' => 'Blocked thread with a customer',
         'is_internal' => false,
@@ -475,14 +475,14 @@ it('hides the emails tab on a blocked person', function (): void {
 
 it('hides share all on a protected person', function (): void {
     ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
     writePersonEmail($this->person, $this->user->email);
 
     $email = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'subject' => 'Owner thread on protected person',
         'is_internal' => false,
@@ -499,19 +499,19 @@ it('hides share all on a protected person', function (): void {
 
 it('keeps the emails tab visible on an opportunity', function (): void {
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
     writePersonEmail($this->person, $this->user->email);
 
     $opportunity = Opportunity::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'creator_id' => $this->user->id,
     ]);
 
     $email = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $account->getKey(),
         'subject' => 'Visible on the deal',
@@ -546,20 +546,20 @@ it('shows via two mailboxes using connected mailbox addresses not workspace logi
     $this->user->update(['email' => 'owner@relaticle.test']);
 
     $coworker = User::factory()->create([
-        'current_team_id' => $this->team->id,
+        'current_workspace_id' => $this->workspace->id,
         'email' => 'editor@relaticle.test',
     ]);
-    $this->team->users()->attach($coworker, ['role' => 'editor']);
+    $this->workspace->users()->attach($coworker, ['role' => 'editor']);
 
     $ownerAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'email_address' => 'whitesharkdevs@gmail.com',
         'display_name' => 'White Shark',
     ]));
 
     $coworkerAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $coworker->id,
         'email_address' => 'mail2asmitnepali99@gmail.com',
         'display_name' => 'Editor Mailbox',
@@ -568,7 +568,7 @@ it('shows via two mailboxes using connected mailbox addresses not workspace logi
     $messageId = '<via-two-mailboxes@example.com>';
 
     $ownerCopy = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $ownerAccount->getKey(),
         'rfc_message_id' => $messageId,
@@ -578,7 +578,7 @@ it('shows via two mailboxes using connected mailbox addresses not workspace logi
     ]);
 
     $coworkerCopy = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $coworker->id,
         'connected_account_id' => $coworkerAccount->getKey(),
         'rfc_message_id' => $messageId,
@@ -606,13 +606,13 @@ it('shows via two mailboxes using connected mailbox addresses not workspace logi
 
 it('shows the imported mailbox name on record email list rows', function (): void {
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'display_name' => 'Sales Inbox',
     ]));
 
     $email = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $account->getKey(),
         'subject' => 'Quarterly forecast',
@@ -634,23 +634,23 @@ it('shows the imported mailbox name on record email list rows', function (): voi
 });
 
 it('does not match hidden subject or snippet text when searching metadata-only emails', function (): void {
-    $owner = User::factory()->withTeam()->create();
-    $team = $owner->currentTeam;
-    $viewer = User::factory()->create(['current_team_id' => $team->id]);
+    $owner = User::factory()->withWorkspace()->create();
+    $team = $owner->currentWorkspace;
+    $viewer = User::factory()->create(['current_workspace_id' => $team->id]);
     $team->users()->attach($viewer, ['role' => 'editor']);
 
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $owner->id,
     ]));
 
     $person = People::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'creator_id' => $owner->id,
     ]);
 
     $email = Email::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $owner->id,
         'connected_account_id' => $account->getKey(),
         'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -680,23 +680,23 @@ it('does not match hidden subject or snippet text when searching metadata-only e
 });
 
 it('does not match hidden subject or snippet text when a metadata-only share overrides a full default', function (): void {
-    $owner = User::factory()->withTeam()->create();
-    $team = $owner->currentTeam;
-    $viewer = User::factory()->create(['current_team_id' => $team->id]);
+    $owner = User::factory()->withWorkspace()->create();
+    $team = $owner->currentWorkspace;
+    $viewer = User::factory()->create(['current_workspace_id' => $team->id]);
     $team->users()->attach($viewer, ['role' => 'editor']);
 
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $owner->id,
     ]));
 
     $person = People::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'creator_id' => $owner->id,
     ]);
 
     $email = Email::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $owner->id,
         'connected_account_id' => $account->getKey(),
         'privacy_tier' => EmailPrivacyTier::FULL,
@@ -706,7 +706,7 @@ it('does not match hidden subject or snippet text when a metadata-only share ove
 
     EmailShare::factory()->tier(EmailPrivacyTier::METADATA_ONLY)->create([
         'email_id' => $email->getKey(),
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'shared_by' => $owner->id,
         'shared_with' => $viewer->id,
     ]);
@@ -733,23 +733,23 @@ it('does not match hidden subject or snippet text when a metadata-only share ove
 });
 
 it('does not match snippet text when a subject share overrides a full default', function (): void {
-    $owner = User::factory()->withTeam()->create();
-    $team = $owner->currentTeam;
-    $viewer = User::factory()->create(['current_team_id' => $team->id]);
+    $owner = User::factory()->withWorkspace()->create();
+    $team = $owner->currentWorkspace;
+    $viewer = User::factory()->create(['current_workspace_id' => $team->id]);
     $team->users()->attach($viewer, ['role' => 'editor']);
 
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $owner->id,
     ]));
 
     $person = People::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'creator_id' => $owner->id,
     ]);
 
     $email = Email::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $owner->id,
         'connected_account_id' => $account->getKey(),
         'privacy_tier' => EmailPrivacyTier::FULL,
@@ -759,7 +759,7 @@ it('does not match snippet text when a subject share overrides a full default', 
 
     EmailShare::factory()->tier(EmailPrivacyTier::SUBJECT)->create([
         'email_id' => $email->getKey(),
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'shared_by' => $owner->id,
         'shared_with' => $viewer->id,
     ]);
@@ -777,23 +777,23 @@ it('does not match snippet text when a subject share overrides a full default', 
 });
 
 it('shows a request access pill on record mailbox rows without body access', function (): void {
-    $owner = User::factory()->withTeam()->create();
-    $team = $owner->currentTeam;
-    $viewer = User::factory()->create(['current_team_id' => $team->id]);
+    $owner = User::factory()->withWorkspace()->create();
+    $team = $owner->currentWorkspace;
+    $viewer = User::factory()->create(['current_workspace_id' => $team->id]);
     $team->users()->attach($viewer, ['role' => 'editor']);
 
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $owner->id,
     ]));
 
     $person = People::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'creator_id' => $owner->id,
     ]);
 
     $email = Email::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $owner->id,
         'connected_account_id' => $account->getKey(),
         'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -823,23 +823,23 @@ it('shows a request access pill on record mailbox rows without body access', fun
 });
 
 it('shows a requested label on the list pill when an access request is pending', function (): void {
-    $owner = User::factory()->withTeam()->create();
-    $team = $owner->currentTeam;
-    $viewer = User::factory()->create(['current_team_id' => $team->id]);
+    $owner = User::factory()->withWorkspace()->create();
+    $team = $owner->currentWorkspace;
+    $viewer = User::factory()->create(['current_workspace_id' => $team->id]);
     $team->users()->attach($viewer, ['role' => 'editor']);
 
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $owner->id,
     ]));
 
     $person = People::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'creator_id' => $owner->id,
     ]);
 
     $email = Email::factory()->create([
-        'team_id' => $team->id,
+        'workspace_id' => $team->id,
         'user_id' => $owner->id,
         'connected_account_id' => $account->getKey(),
         'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,

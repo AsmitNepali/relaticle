@@ -27,31 +27,31 @@ use Relaticle\EmailIntegration\Services\MeetingParticipantStackPresenter;
 mutates(MeetingsRelationManager::class, BaseMeetingsRelationManager::class, EmailVisibilityService::class, MeetingDetailInfolist::class, MeetingParticipantStackPresenter::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
     Filament::setCurrentPanel(Filament::getPanel('app'));
 
     $this->account = ConnectedAccount::withoutEvents(
         fn () => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->user->id,
         ])
     );
 });
 
 it('shows meetings linked to this person only', function (): void {
-    $person = People::factory()->for($this->team)->create();
+    $person = People::factory()->for($this->workspace)->create();
 
     $linked = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
     $linked->people()->attach($person, ['link_source' => 'manual']);
 
     $other = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
     ]);
 
@@ -64,7 +64,7 @@ it('shows meetings linked to this person only', function (): void {
 });
 
 it('can render the meetings relation manager', function (): void {
-    $person = People::factory()->for($this->team)->create();
+    $person = People::factory()->for($this->workspace)->create();
 
     livewire(MeetingsRelationManager::class, [
         'ownerRecord' => $person,
@@ -75,30 +75,30 @@ it('can render the meetings relation manager', function (): void {
 
 it('shows one copy per occurrence and prefers the viewers calendar', function (string $type): void {
     [$person, $manager, $page] = match ($type) {
-        'company' => [Company::factory()->for($this->team)->create(), App\Filament\Resources\CompanyResource\RelationManagers\MeetingsRelationManager::class, ViewCompany::class],
-        'opportunity' => [Opportunity::factory()->for($this->team)->create(), App\Filament\Resources\OpportunityResource\RelationManagers\MeetingsRelationManager::class, ViewOpportunity::class],
-        default => [People::factory()->for($this->team)->create(), MeetingsRelationManager::class, ViewPeople::class],
+        'company' => [Company::factory()->for($this->workspace)->create(), App\Filament\Resources\CompanyResource\RelationManagers\MeetingsRelationManager::class, ViewCompany::class],
+        'opportunity' => [Opportunity::factory()->for($this->workspace)->create(), App\Filament\Resources\OpportunityResource\RelationManagers\MeetingsRelationManager::class, ViewOpportunity::class],
+        default => [People::factory()->for($this->workspace)->create(), MeetingsRelationManager::class, ViewPeople::class],
     };
     $teammate = User::factory()->create();
     $otherAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $teammate->id,
     ]));
     $starts = now()->startOfHour();
     $otherCopy = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $otherAccount->id,
         'ical_uid' => 'weekly@example.test',
         'starts_at' => $starts,
     ]);
     $ownCopy = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'ical_uid' => 'weekly@example.test',
         'starts_at' => $starts,
     ]);
     $nextWeek = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'ical_uid' => 'weekly@example.test',
         'starts_at' => $starts->addWeek(),
@@ -114,9 +114,9 @@ it('shows one copy per occurrence and prefers the viewers calendar', function (s
 })->with(['person', 'company', 'opportunity']);
 
 it('does not merge meetings without a shared calendar identity', function (): void {
-    $person = People::factory()->for($this->team)->create();
+    $person = People::factory()->for($this->workspace)->create();
     $meetings = Meeting::factory()->count(2)->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Same title and time',
         'starts_at' => now()->startOfHour(),
@@ -130,19 +130,19 @@ it('does not merge meetings without a shared calendar identity', function (): vo
 });
 
 it('does not let a hidden or unrelated copy suppress a linked visible meeting', function (): void {
-    $person = People::factory()->for($this->team)->create();
+    $person = People::factory()->for($this->workspace)->create();
     $teammate = User::factory()->create();
     $otherAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $teammate->id,
     ]));
-    $attributes = ['team_id' => $this->team->id, 'ical_uid' => 'same@example.test', 'starts_at' => now()->startOfHour()];
+    $attributes = ['workspace_id' => $this->workspace->id, 'ical_uid' => 'same@example.test', 'starts_at' => now()->startOfHour()];
     $hidden = Meeting::factory()->create([...$attributes, 'connected_account_id' => $this->account->id, 'organizer_email' => 'hidden@example.test']);
     $unrelated = Meeting::factory()->create([...$attributes, 'connected_account_id' => $this->account->id]);
     $visible = Meeting::factory()->create([...$attributes, 'connected_account_id' => $otherAccount->id]);
     $person->meetings()->attach([$hidden->id, $visible->id], ['link_source' => 'manual']);
     EmailBlocklist::factory()->email('hidden@example.test')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
     ]);
@@ -154,14 +154,14 @@ it('does not let a hidden or unrelated copy suppress a linked visible meeting', 
 });
 
 it('shows the viewers response on a teammates linked copy', function (): void {
-    $person = People::factory()->for($this->team)->create();
+    $person = People::factory()->for($this->workspace)->create();
     $teammate = User::factory()->create();
     $otherAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $teammate->id,
     ]));
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $otherAccount->id,
         'response_status' => AttendeeResponseStatus::ACCEPTED,
     ]);
@@ -177,19 +177,19 @@ it('shows the viewers response on a teammates linked copy', function (): void {
 });
 
 it('hides meetings on a protected person', function (): void {
-    $person = People::factory()->for($this->team)->create();
+    $person = People::factory()->for($this->workspace)->create();
 
     $emailsField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', $this->team->id)
+        ->where('tenant_id', $this->workspace->id)
         ->where('entity_type', 'people')
         ->where('code', PeopleField::EMAILS->value)
         ->firstOrFail();
 
-    $person->saveCustomFieldValue($emailsField, [$this->user->email], $this->team);
+    $person->saveCustomFieldValue($emailsField, [$this->user->email], $this->workspace);
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Hidden on the protected record',
     ]);
@@ -204,9 +204,9 @@ it('hides meetings on a protected person', function (): void {
 });
 
 it('shows attendee avatars and overflow in the attendees column', function (): void {
-    $person = People::factory()->for($this->team)->create();
+    $person = People::factory()->for($this->workspace)->create();
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Stacked Attendees Meeting',
     ]);
@@ -229,10 +229,10 @@ it('shows attendee avatars and overflow in the attendees column', function (): v
 });
 
 it('shows the shared meeting detail in the relation manager view modal', function (): void {
-    $person = People::factory()->for($this->team)->create();
+    $person = People::factory()->for($this->workspace)->create();
     $starts = now()->startOfHour();
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Shared Detail Meeting',
         'starts_at' => $starts,

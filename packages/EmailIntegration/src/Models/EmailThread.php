@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Relaticle\EmailIntegration\Models;
 
 use App\Models\Concerns\HasAiSummary;
-use App\Models\Concerns\HasTeam;
+use App\Models\Concerns\HasWorkspace;
 use Carbon\CarbonInterface;
 use Database\Factories\EmailThreadFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -25,7 +25,7 @@ final class EmailThread extends Model
     /**
      * @use HasFactory<EmailThreadFactory>
      */
-    use HasAiSummary, HasFactory, HasTeam, HasUlids;
+    use HasAiSummary, HasFactory, HasUlids, HasWorkspace;
 
     protected static function newFactory(): EmailThreadFactory
     {
@@ -33,7 +33,7 @@ final class EmailThread extends Model
     }
 
     protected $fillable = [
-        'team_id',
+        'workspace_id',
         'connected_account_id',
         'thread_id',
         'subject',

@@ -16,26 +16,26 @@ use Relaticle\EmailIntegration\Models\EmailParticipant;
 mutates(BaseRecordEmailsPage::class, Email::class, EmailCategory::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
-    $this->team = $this->user->currentTeam;
+    $this->user = User::factory()->withWorkspace()->create();
+    $this->workspace = $this->user->currentWorkspace;
 
     $this->account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
     $this->person = People::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'creator_id' => $this->user->id,
     ]);
 
     $this->actingAs($this->user);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 });
 
 it('shows the system category tag on a record mailbox row', function (): void {
     $email = Email::factory()->inbound()->full()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->getKey(),
         'subject' => 'Q3 campaign recap',
@@ -61,7 +61,7 @@ it('shows the system category tag on a record mailbox row', function (): void {
 
 it('resolves the classifier label the store path actually writes', function (): void {
     $email = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->getKey(),
     ]);
@@ -75,7 +75,7 @@ it('resolves the classifier label the store path actually writes', function (): 
 
 it('hides the Other fallback instead of showing a category tag', function (): void {
     $email = Email::factory()->inbound()->full()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->getKey(),
         'subject' => 'Catching up next week',

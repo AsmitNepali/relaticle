@@ -18,7 +18,7 @@ final readonly class RequestEmailAccessAction
         // Access requests are only valid within the email's own workspace. Never
         // let a user from another team open a cross-team request (mirrors the team
         // check already enforced on the approval path).
-        abort_unless($requester->current_team_id === $email->team_id, 403);
+        abort_unless($requester->current_workspace_id === $email->workspace_id, 403);
 
         if ($email->hasPendingAccessRequestFrom($requester)) {
             return null;

@@ -22,7 +22,7 @@ final readonly class LinkMeetingToRecordAction
         // This is the authoritative guard: callers (Filament, future API/chat) must
         // not be trusted to have pre-scoped the record.
         throw_if(
-            (string) $record->getAttribute('team_id') !== (string) $meeting->team_id,
+            (string) $record->getAttribute('workspace_id') !== (string) $meeting->workspace_id,
             InvalidArgumentException::class,
             'Cannot link a meeting to a record from another team.',
         );

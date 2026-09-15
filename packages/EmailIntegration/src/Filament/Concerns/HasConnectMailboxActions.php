@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Filament\Concerns;
 
-use App\Models\Team;
+use App\Models\Workspace;
 use Filament\Actions\Action;
 use Relaticle\EmailIntegration\Support\MailboxOAuthWorkspace;
 use RuntimeException;
@@ -18,7 +18,7 @@ trait HasConnectMailboxActions
             ->icon('icon-google')
             ->color('gray')
             ->outlined()
-            ->url(fn (): string => MailboxOAuthWorkspace::redirectUrl('gmail', $this->mailboxOAuthTeam()), true);
+            ->url(fn (): string => MailboxOAuthWorkspace::redirectUrl('gmail', $this->mailboxOAuthWorkspace()), true);
     }
 
     public function connectAzureAction(): Action
@@ -30,14 +30,14 @@ trait HasConnectMailboxActions
             ->outlined()
             // Outlook/Azure connection is hidden for now; re-enable when the provider is ready.
             ->hidden()
-            ->url(fn (): string => MailboxOAuthWorkspace::redirectUrl('azure', $this->mailboxOAuthTeam()), true);
+            ->url(fn (): string => MailboxOAuthWorkspace::redirectUrl('azure', $this->mailboxOAuthWorkspace()), true);
     }
 
-    private function mailboxOAuthTeam(): Team
+    private function mailboxOAuthWorkspace(): Workspace
     {
         $team = filament()->getTenant();
 
-        throw_unless($team instanceof Team, RuntimeException::class, 'Mailbox OAuth requires an active workspace.');
+        throw_unless($team instanceof Workspace, RuntimeException::class, 'Mailbox OAuth requires an active workspace.');
 
         return $team;
     }

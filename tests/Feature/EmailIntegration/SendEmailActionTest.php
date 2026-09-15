@@ -29,13 +29,13 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 mutates(SendEmailAction::class, LinkEmailAction::class, EmailSendingService::class, ConnectedAccount::class, EmailInlineImageEmbedder::class, EmailAttachment::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'email_address' => 'sender@example.com',
         'display_name' => 'Test Sender',
@@ -112,15 +112,15 @@ it('forbids queuing mail when the mailbox is not active', function (EmailAccount
 
 it('ignores an in_reply_to_email_id that belongs to another team', function (): void {
     // An email owned by a different tenant, with its own active connected account so
-    // it is not filtered out by the ActiveAccountScope — only the team_id scope on
+    // it is not filtered out by the ActiveAccountScope — only the workspace_id scope on
     // the reply lookup should exclude it.
-    $otherUser = User::factory()->withTeam()->create();
+    $otherUser = User::factory()->withWorkspace()->create();
     $otherAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $otherUser->currentTeam->getKey(),
+        'workspace_id' => $otherUser->currentWorkspace->getKey(),
         'user_id' => $otherUser->getKey(),
     ]));
     $foreignEmail = Email::query()->create([
-        'team_id' => $otherUser->currentTeam->getKey(),
+        'workspace_id' => $otherUser->currentWorkspace->getKey(),
         'user_id' => $otherUser->getKey(),
         'connected_account_id' => $otherAccount->getKey(),
         'rfc_message_id' => '<secret@other-team.com>',
@@ -154,13 +154,13 @@ it('ignores an in_reply_to_email_id that belongs to another team', function (): 
 
 it('does not copy a provider thread id from a different sending mailbox', function (): void {
     $otherAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'email_address' => 'other@example.com',
         'display_name' => 'Other Mailbox',
     ]));
     $sharedEmail = Email::query()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $otherAccount->getKey(),
         'rfc_message_id' => '<shared@example.com>',
@@ -213,7 +213,7 @@ it('does not copy a provider thread id from a different sending mailbox', functi
 
 it('syncs the email thread aggregate when an outbound reply is sent', function (): void {
     $original = Email::query()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->getKey(),
         'rfc_message_id' => '<original@example.com>',
@@ -270,7 +270,7 @@ it('syncs the email thread aggregate when an outbound reply is sent', function (
 
 it('links the queued email to a CRM record via emailables', function (): void {
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Jane Doe',
         'creator_id' => $this->user->id,
     ]);
@@ -307,7 +307,7 @@ it('updates record metrics after a manually linked queued send is delivered', fu
     ]);
 
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Jane Doe',
         'creator_id' => $this->user->id,
         'email_count' => 0,
@@ -348,10 +348,10 @@ it('updates record metrics after a manually linked queued send is delivered', fu
 });
 
 it('rejects sending through a connected account owned by another user', function (): void {
-    $otherUser = User::factory()->withTeam()->create();
+    $otherUser = User::factory()->withWorkspace()->create();
 
     $foreignAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $otherUser->currentTeam->id,
+        'workspace_id' => $otherUser->currentWorkspace->id,
         'user_id' => $otherUser->id,
         'email_address' => 'victim@example.com',
     ]));
@@ -376,7 +376,7 @@ it('throws when the user has hit the max queued limit', function (): void {
     config(['email-integration.outbox.max_queued_per_user' => 1]);
 
     Email::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'subject' => 'Already queued',
@@ -535,7 +535,7 @@ it('embeds rich editor inline images from data-id paths when queuing send', func
     Storage::fake('local');
     Storage::fake('public');
 
-    $editorPath = EmailAttachment::composeImagesDirectory((string) $this->user->current_team_id).'/editor-image.png';
+    $editorPath = EmailAttachment::composeImagesDirectory((string) $this->user->current_workspace_id).'/editor-image.png';
     Storage::disk('local')->put($editorPath, 'png-bytes');
 
     $email = app(SendEmailAction::class)->execute([
@@ -593,8 +593,8 @@ it('does not attach a storage file referenced by a composer image url', function
 it('does not attach another tenant image named in composer html', function (): void {
     Storage::fake('local');
 
-    $otherUser = User::factory()->withTeam()->create();
-    $foreignPath = EmailAttachment::composeImagesDirectory((string) $otherUser->current_team_id).'/secret.png';
+    $otherUser = User::factory()->withWorkspace()->create();
+    $foreignPath = EmailAttachment::composeImagesDirectory((string) $otherUser->current_workspace_id).'/secret.png';
     Storage::disk('local')->put($foreignPath, 'png-bytes-from-other-tenant');
 
     $email = app(SendEmailAction::class)->execute([
@@ -618,7 +618,7 @@ it('does not attach another tenant image named in composer html', function (): v
 it('does not attach a non-image file from the tenant compose directory', function (): void {
     Storage::fake('local');
 
-    $path = EmailAttachment::composeImagesDirectory((string) $this->user->current_team_id).'/notes.csv';
+    $path = EmailAttachment::composeImagesDirectory((string) $this->user->current_workspace_id).'/notes.csv';
     Storage::disk('local')->put($path, 'secret,csv,contents');
 
     $email = app(SendEmailAction::class)->execute([
@@ -642,7 +642,7 @@ it('does not follow path traversal in composer image data-id', function (): void
     Storage::fake('local');
     Storage::disk('local')->put('private.csv', 'secret,tenant,data');
 
-    $path = EmailAttachment::composeImagesDirectory((string) $this->user->current_team_id).'/../../private.csv';
+    $path = EmailAttachment::composeImagesDirectory((string) $this->user->current_workspace_id).'/../../private.csv';
 
     $email = app(SendEmailAction::class)->execute([
         'connected_account_id' => $this->account->id,

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
-use App\Models\Team;
+use App\Models\Workspace;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Relaticle\EmailIntegration\Models\PublicEmailDomain;
 
@@ -18,7 +18,7 @@ final class PublicEmailDomainFactory extends Factory
     public function definition(): array
     {
         return [
-            'team_id' => Team::factory(),
+            'workspace_id' => Workspace::factory(),
             'domain' => fake()->unique()->domainName(),
         ];
     }

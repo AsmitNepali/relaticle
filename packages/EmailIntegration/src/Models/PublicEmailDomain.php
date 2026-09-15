@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Models;
 
-use App\Models\Concerns\HasTeam;
+use App\Models\Concerns\HasWorkspace;
 use Database\Factories\PublicEmailDomainFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,7 +15,7 @@ final class PublicEmailDomain extends Model
     /**
      * @use HasFactory<PublicEmailDomainFactory>
      */
-    use HasFactory, HasTeam, HasUlids;
+    use HasFactory, HasUlids, HasWorkspace;
 
     protected static function newFactory(): PublicEmailDomainFactory
     {
@@ -23,7 +23,7 @@ final class PublicEmailDomain extends Model
     }
 
     protected $fillable = [
-        'team_id',
+        'workspace_id',
         'domain',
     ];
 }

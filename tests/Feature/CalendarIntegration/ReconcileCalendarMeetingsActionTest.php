@@ -35,12 +35,12 @@ it('removes meetings that no longer exist on the provider calendar', function ()
 
     $stale = Meeting::factory()->create([
         'connected_account_id' => $account->getKey(),
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'provider_event_id' => 'stale-event',
     ]);
     $current = Meeting::factory()->create([
         'connected_account_id' => $account->getKey(),
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'provider_event_id' => 'live-event',
     ]);
 

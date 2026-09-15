@@ -23,7 +23,7 @@ final readonly class CreateSignatureAction
             }
 
             return EmailSignature::query()->create([
-                'team_id' => $account->team_id,
+                'workspace_id' => $account->workspace_id,
                 'connected_account_id' => $account->getKey(),
                 'user_id' => $account->user_id,
                 'name' => $data['name'],

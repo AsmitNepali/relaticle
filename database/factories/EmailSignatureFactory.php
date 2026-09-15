@@ -19,9 +19,9 @@ final class EmailSignatureFactory extends Factory
     {
         return [
             'connected_account_id' => ConnectedAccount::factory(),
-            'team_id' => fn (array $attributes): string => ConnectedAccount::query()
+            'workspace_id' => fn (array $attributes): string => ConnectedAccount::query()
                 ->whereKey($attributes['connected_account_id'])
-                ->value('team_id'),
+                ->value('workspace_id'),
             'user_id' => fn (array $attributes): string => ConnectedAccount::query()
                 ->whereKey($attributes['connected_account_id'])
                 ->value('user_id'),

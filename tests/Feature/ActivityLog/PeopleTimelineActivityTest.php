@@ -23,10 +23,10 @@ mutates(HasActivityTimeline::class);
 mutates(People::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create(['name' => 'John']);
+    $this->user = User::factory()->withWorkspace()->create(['name' => 'John']);
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 });
 
 function nextTimelineActivityRequest(): void
@@ -37,7 +37,7 @@ function nextTimelineActivityRequest(): void
 it('loads causer eagerly when resolving activity_log entries so strict lazy-loading does not throw', function (): void {
     $person = People::factory()->create([
         'name' => 'Alpha',
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
     ]);
     nextTimelineActivityRequest();
     $person->update(['name' => 'Bravo']);
@@ -52,7 +52,7 @@ it('loads causer eagerly when resolving activity_log entries so strict lazy-load
 it('renders activity_log entries in the ActivityLogLivewire UI when fromActivityLog() is chained', function (): void {
     $person = People::factory()->create([
         'name' => 'Alpha',
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
     ]);
     nextTimelineActivityRequest();
     $person->update(['name' => 'Bravo']);
@@ -69,7 +69,7 @@ it('groups entries by ISO week with relative labels', function (): void {
 
     $person = People::factory()->create([
         'name' => 'Alpha',
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
     ]);
 
     nextTimelineActivityRequest();
@@ -100,7 +100,7 @@ it('groups entries by ISO week with relative labels', function (): void {
 it('renders a concise summary sentence with changed field labels', function (): void {
     $person = People::factory()->create([
         'name' => 'Alpha',
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
     ]);
     nextTimelineActivityRequest();
     $person->update(['name' => 'Bravo']);
@@ -117,7 +117,7 @@ it('renders a concise summary sentence with changed field labels', function (): 
 it('renders old and new values inside the collapsed diff panel markup', function (): void {
     $person = People::factory()->create([
         'name' => 'Alpha',
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
     ]);
     nextTimelineActivityRequest();
     $person->update(['name' => 'Bravo']);
@@ -134,7 +134,7 @@ it('renders old and new values inside the collapsed diff panel markup', function
 it('does not render a chevron for created entries', function (): void {
     $person = People::factory()->create([
         'name' => 'Alpha',
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
     ]);
 
     $html = livewire(ActivityLogLivewire::class, [
@@ -152,18 +152,18 @@ it('does not render a chevron for created entries', function (): void {
 
 it('labels inbound mailbox mail as received and outbound mail as sent', function (): void {
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
         'user_id' => $this->user->getKey(),
     ]));
 
     $person = People::factory()->create([
         'name' => 'Jordan Hale',
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
         'creator_id' => $this->user->getKey(),
     ]);
 
     $inbound = Email::factory()->inbound()->create([
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
         'user_id' => $this->user->getKey(),
         'connected_account_id' => $account->getKey(),
         'subject' => 'Re: Pricing for Q3',
@@ -173,7 +173,7 @@ it('labels inbound mailbox mail as received and outbound mail as sent', function
     ]);
 
     $outbound = Email::factory()->outbound()->create([
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
         'user_id' => $this->user->getKey(),
         'connected_account_id' => $account->getKey(),
         'subject' => 'Pricing for Q3',
@@ -183,7 +183,7 @@ it('labels inbound mailbox mail as received and outbound mail as sent', function
     ]);
 
     $unsentOutbound = Email::factory()->outbound()->create([
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
         'user_id' => $this->user->getKey(),
         'connected_account_id' => $account->getKey(),
         'subject' => 'Draft pricing follow-up',
@@ -208,22 +208,22 @@ it('labels inbound mailbox mail as received and outbound mail as sent', function
 
 it('hides metadata-only subjects from teammates on the activity timeline', function (): void {
     $teammate = User::factory()->create();
-    $teammate->teams()->attach($this->team);
-    $teammate->forceFill(['current_team_id' => $this->team->id])->save();
+    $teammate->workspaces()->attach($this->workspace);
+    $teammate->forceFill(['current_workspace_id' => $this->workspace->id])->save();
 
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
         'user_id' => $this->user->getKey(),
     ]));
 
     $person = People::factory()->create([
         'name' => 'Jordan Hale',
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
         'creator_id' => $this->user->getKey(),
     ]);
 
     $email = Email::factory()->inbound()->create([
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
         'user_id' => $this->user->getKey(),
         'connected_account_id' => $account->getKey(),
         'subject' => 'Confidential acquisition terms',
@@ -234,7 +234,7 @@ it('hides metadata-only subjects from teammates on the activity timeline', funct
     $person->emails()->attach($email->getKey());
 
     $this->actingAs($teammate);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 
     $title = $person->timeline()
         ->get()
@@ -254,18 +254,18 @@ it('hides metadata-only subjects from teammates on the activity timeline', funct
 
 it('shows metadata-only subjects to the owner on the activity timeline', function (): void {
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
         'user_id' => $this->user->getKey(),
     ]));
 
     $person = People::factory()->create([
         'name' => 'Jordan Hale',
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
         'creator_id' => $this->user->getKey(),
     ]);
 
     $email = Email::factory()->inbound()->create([
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
         'user_id' => $this->user->getKey(),
         'connected_account_id' => $account->getKey(),
         'subject' => 'Confidential acquisition terms',
@@ -291,22 +291,22 @@ it('shows metadata-only subjects to the owner on the activity timeline', functio
 
 it('shows the email subject on the activity timeline when a teammate can view it', function (EmailPrivacyTier $tier): void {
     $teammate = User::factory()->create();
-    $teammate->teams()->attach($this->team);
-    $teammate->forceFill(['current_team_id' => $this->team->id])->save();
+    $teammate->workspaces()->attach($this->workspace);
+    $teammate->forceFill(['current_workspace_id' => $this->workspace->id])->save();
 
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
         'user_id' => $this->user->getKey(),
     ]));
 
     $person = People::factory()->create([
         'name' => 'Jordan Hale',
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
         'creator_id' => $this->user->getKey(),
     ]);
 
     $email = Email::factory()->inbound()->create([
-        'team_id' => $this->team->getKey(),
+        'workspace_id' => $this->workspace->getKey(),
         'user_id' => $this->user->getKey(),
         'connected_account_id' => $account->getKey(),
         'subject' => 'Q3 pricing proposal',
@@ -317,7 +317,7 @@ it('shows the email subject on the activity timeline when a teammate can view it
     $person->emails()->attach($email->getKey());
 
     $this->actingAs($teammate);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 
     $title = $person->timeline()
         ->get()

@@ -14,6 +14,7 @@ use Relaticle\EmailIntegration\Enums\EmailBlocklistType;
 use Relaticle\EmailIntegration\Enums\EmailVisibilityEnforcement;
 
 /**
+ * @property string $workspace_id
  * @property EmailBlocklistType $type
  * @property EmailVisibilityEnforcement $enforcement_level
  * @property string $value
@@ -21,6 +22,8 @@ use Relaticle\EmailIntegration\Enums\EmailVisibilityEnforcement;
  */
 final class TeamEmailBlocklist extends Model
 {
+    protected $table = 'workspace_email_blocklists';
+
     /**
      * @use HasFactory<TeamEmailBlocklistFactory>
      */
@@ -32,7 +35,7 @@ final class TeamEmailBlocklist extends Model
     }
 
     protected $fillable = [
-        'team_id',
+        'workspace_id',
         'type',
         'value',
         'enforcement_level',

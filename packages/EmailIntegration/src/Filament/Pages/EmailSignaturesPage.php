@@ -79,7 +79,7 @@ final class EmailSignaturesPage extends Page
     private function ownedSignatures(): Builder
     {
         return EmailSignature::query()
-            ->where('team_id', filament()->getTenant()?->getKey())
+            ->where('workspace_id', filament()->getTenant()?->getKey())
             ->where('user_id', auth()->id());
     }
 
@@ -90,7 +90,7 @@ final class EmailSignaturesPage extends Page
     {
         return ConnectedAccount::query()
             ->where('user_id', auth()->id())
-            ->where('team_id', filament()->getTenant()?->getKey())
+            ->where('workspace_id', filament()->getTenant()?->getKey())
             ->active()
             ->defaultFirst()
             ->get();
@@ -102,7 +102,7 @@ final class EmailSignaturesPage extends Page
         return ConnectedAccount::query()
             ->whereKey($id)
             ->where('user_id', auth()->id())
-            ->where('team_id', filament()->getTenant()?->getKey())
+            ->where('workspace_id', filament()->getTenant()?->getKey())
             ->firstOrFail();
     }
 

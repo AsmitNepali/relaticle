@@ -13,21 +13,21 @@ use Relaticle\EmailIntegration\Models\EmailParticipant;
 use Relaticle\EmailIntegration\Models\EmailRead;
 
 beforeEach(function (): void {
-    $this->owner = User::factory()->withTeam()->create();
-    $this->team = $this->owner->currentTeam;
+    $this->owner = User::factory()->withWorkspace()->create();
+    $this->workspace = $this->owner->currentWorkspace;
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
     ]));
 
     $this->person = People::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'creator_id' => $this->owner->id,
     ]);
 
     $this->newer = Email::factory()->inbound()->full()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
         'connected_account_id' => $this->account->getKey(),
         'sent_at' => now(),
@@ -38,7 +38,7 @@ beforeEach(function (): void {
     ]);
 
     $this->older = Email::factory()->inbound()->full()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
         'connected_account_id' => $this->account->getKey(),
         'sent_at' => now()->subHour(),
@@ -59,7 +59,7 @@ beforeEach(function (): void {
     $this->person->emails()->attach([$this->newer->getKey(), $this->older->getKey()]);
 
     $this->actingAs($this->owner);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 });
 
 it('marks all of the record\'s unread emails as read', function (): void {
@@ -120,7 +120,7 @@ it('saves an email privacy tier from the sharing cards', function (): void {
 it('does not mark emails belonging to other records', function (): void {
     // An unread email NOT attached to this person.
     $unrelated = Email::factory()->inbound()->full()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
         'connected_account_id' => $this->account->getKey(),
         'sent_at' => now()->subDay(),

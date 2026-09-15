@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Livewire;
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Actions\Concerns\InteractsWithActions;
@@ -129,7 +129,7 @@ final class MeetingsHomeWidget extends Component implements HasActions, HasSchem
             return false;
         }
 
-        return ConnectedAccount::hasActiveFor($user, $team instanceof Team ? $team : null);
+        return ConnectedAccount::hasActiveFor($user, $team instanceof Workspace ? $team : null);
     }
 
     public function isMailboxSyncing(): bool
@@ -425,7 +425,7 @@ final class MeetingsHomeWidget extends Component implements HasActions, HasSchem
         $user = auth()->user();
         $team = Filament::getTenant();
 
-        if (! $user instanceof User || ! $team instanceof Team) {
+        if (! $user instanceof User || ! $team instanceof Workspace) {
             return new Collection;
         }
 
@@ -442,7 +442,7 @@ final class MeetingsHomeWidget extends Component implements HasActions, HasSchem
 
         $meeting = Meeting::query()
             ->withGlobalScope('visible', VisibleMeetingScope::personal($user))
-            ->with(['team', 'attendees.contact', 'connectedAccount.user', 'people', 'companies', 'opportunities'])
+            ->with(['workspace', 'attendees.contact', 'connectedAccount.user', 'people', 'companies', 'opportunities'])
             ->find($meetingId);
 
         if ($meeting instanceof Meeting) {

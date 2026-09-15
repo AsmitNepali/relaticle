@@ -212,7 +212,7 @@ final readonly class EmailTemplateRenderService
 
         $fields = CustomField::query()
             ->withoutGlobalScopes()
-            ->where('tenant_id', $person->team_id)
+            ->where('tenant_id', $person->workspace_id)
             ->where('entity_type', 'people')
             ->whereIn('code', array_values($codes))
             ->get()

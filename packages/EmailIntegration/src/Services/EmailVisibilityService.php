@@ -10,9 +10,9 @@ use App\Models\Company;
 use App\Models\CustomField;
 use App\Models\Opportunity;
 use App\Models\People;
-use App\Models\Team;
-use App\Models\TeamInvitation;
 use App\Models\User;
+use App\Models\Workspace;
+use App\Models\WorkspaceInvitation;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
@@ -61,7 +61,7 @@ final class EmailVisibilityService
         $email->loadMissing('participants');
 
         return $this->isHiddenFromOwnerFor(
-            (string) $email->team_id,
+            (string) $email->workspace_id,
             $email->connected_account_id,
             $email->participants->pluck('email_address')->all(),
         );
@@ -99,7 +99,7 @@ final class EmailVisibilityService
         $isOwner = $meeting->connectedAccount?->user_id === $viewer->getKey();
 
         if ($this->isHiddenFromOwnerFor(
-            (string) $meeting->team_id,
+            (string) $meeting->workspace_id,
             $meeting->connected_account_id,
             $hideAddresses,
         )) {
@@ -114,7 +114,7 @@ final class EmailVisibilityService
             return false;
         }
 
-        return $this->allAddressesAreProtected($attendeeAddresses, (string) $meeting->team_id);
+        return $this->allAddressesAreProtected($attendeeAddresses, (string) $meeting->workspace_id);
     }
 
     /**
@@ -218,7 +218,7 @@ final class EmailVisibilityService
 
     public function recordMailboxHiddenEnforcement(People|Company $record): ?EmailVisibilityEnforcement
     {
-        $teamId = (string) $record->team_id;
+        $teamId = (string) $record->workspace_id;
         $isProtected = false;
 
         foreach ($this->recordIdentityAddresses($record) as $address) {
@@ -301,14 +301,14 @@ final class EmailVisibilityService
         }
 
         if ($this->isHiddenFromOwnerFor(
-            (string) $meeting->team_id,
+            (string) $meeting->workspace_id,
             $meeting->connected_account_id,
             $addresses,
         )) {
             return false;
         }
 
-        return ! $this->allAddressesAreProtected($addresses, (string) $meeting->team_id);
+        return ! $this->allAddressesAreProtected($addresses, (string) $meeting->workspace_id);
     }
 
     public function normalizeDomainInput(string $value): ?string
@@ -337,7 +337,7 @@ final class EmailVisibilityService
      * @param  Collection<int, TeamEmailBlocklist>  $customEntries
      * @return array<int, array{key: string, address: string, enforcement: string, enforcement_value: string, source: string, is_system: bool, entry_id?: string, updated_at?: string}>
      */
-    public function visibilityTableRows(Team $team, Collection $customEntries): array
+    public function visibilityTableRows(Workspace $team, Collection $customEntries): array
     {
         $systemRows = [
             [
@@ -395,7 +395,7 @@ final class EmailVisibilityService
     /**
      * @return array<int, lowercase-string>
      */
-    public function workspaceDomains(Team $team): array
+    public function workspaceDomains(Workspace $team): array
     {
         $teamId = $team->getKey();
 
@@ -414,7 +414,7 @@ final class EmailVisibilityService
         }
 
         ConnectedAccount::query()
-            ->where('team_id', $teamId)
+            ->where('workspace_id', $teamId)
             ->pluck('email_address')
             ->each(function (mixed $emailAddress) use ($domains, $team): void {
                 $domain = $this->domainFromEmail((string) $emailAddress);
@@ -441,7 +441,7 @@ final class EmailVisibilityService
             return [];
         }
 
-        $field = $this->customFieldFor((string) $record->team_id, 'people', PeopleField::EMAILS->value);
+        $field = $this->customFieldFor((string) $record->workspace_id, 'people', PeopleField::EMAILS->value);
 
         if (! $field instanceof CustomField) {
             return [];
@@ -461,7 +461,7 @@ final class EmailVisibilityService
             return [];
         }
 
-        $field = $this->customFieldFor((string) $record->team_id, 'company', CompanyField::DOMAINS->value);
+        $field = $this->customFieldFor((string) $record->workspace_id, 'company', CompanyField::DOMAINS->value);
 
         if (! $field instanceof CustomField) {
             return [];
@@ -529,7 +529,7 @@ final class EmailVisibilityService
 
         return $this->allAddressesAreProtected(
             $email->participants->pluck('email_address')->all(),
-            (string) $email->team_id,
+            (string) $email->workspace_id,
         );
     }
 
@@ -597,7 +597,7 @@ final class EmailVisibilityService
             return EmailVisibilityEnforcement::Protected;
         }
 
-        $team = Team::query()->find($teamId);
+        $team = Workspace::query()->find($teamId);
 
         if ($team !== null) {
             $domain = $this->domainFromEmail($address);
@@ -652,14 +652,14 @@ final class EmailVisibilityService
         }
 
         return $this->workspaceEntryCache[$teamId] = TeamEmailBlocklist::query()
-            ->where('team_id', $teamId)
+            ->where('workspace_id', $teamId)
             ->get();
     }
 
     /**
      * @return array<int, lowercase-string>
      */
-    public function memberEmailsForTeam(Team $team): array
+    public function memberEmailsForTeam(Workspace $team): array
     {
         return $this->teamMemberEmails($team->getKey());
     }
@@ -678,7 +678,7 @@ final class EmailVisibilityService
             return $this->teamMemberEmailCache[$teamId];
         }
 
-        $team = Team::query()->find($teamId);
+        $team = Workspace::query()->find($teamId);
 
         if ($team === null) {
             return $this->teamMemberEmailCache[$teamId] = [];
@@ -689,7 +689,7 @@ final class EmailVisibilityService
             ->map(fn (string $email): string => strtolower($email));
 
         ConnectedAccount::query()
-            ->where('team_id', $teamId)
+            ->where('workspace_id', $teamId)
             ->pluck('email_address')
             ->each(function (mixed $emailAddress) use ($emails): void {
                 $normalized = strtolower(trim((string) $emailAddress));
@@ -699,8 +699,8 @@ final class EmailVisibilityService
                 }
             });
 
-        TeamInvitation::query()
-            ->where('team_id', $teamId)
+        WorkspaceInvitation::query()
+            ->where('workspace_id', $teamId)
             ->pluck('email')
             ->each(function (mixed $emailAddress) use ($emails): void {
                 $normalized = strtolower(trim((string) $emailAddress));
@@ -716,7 +716,7 @@ final class EmailVisibilityService
             ->all();
     }
 
-    public function isPublicEmailDomain(string $domain, Team $team): bool
+    public function isPublicEmailDomain(string $domain, Workspace $team): bool
     {
         $normalized = strtolower($domain);
 
@@ -727,7 +727,7 @@ final class EmailVisibilityService
         }
 
         return PublicEmailDomain::query()
-            ->where('team_id', $team->getKey())
+            ->where('workspace_id', $team->getKey())
             ->whereRaw('lower(domain) = ?', [$normalized])
             ->exists();
     }

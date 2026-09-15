@@ -20,9 +20,9 @@ use Relaticle\EmailIntegration\Models\Meeting;
 mutates(EmailIntegration::class, EmailPolicy::class, MeetingPolicy::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    Filament::setTenant($this->user->currentTeam);
+    Filament::setTenant($this->user->currentWorkspace);
 });
 
 it('resolves active when the config flag is enabled', function (): void {
@@ -80,7 +80,7 @@ it('forbids listing meetings when the feature is inactive', function (): void {
 it('hides emails and meetings relation managers on a person when the feature is inactive', function (): void {
     Feature::deactivate(EmailIntegration::class);
 
-    $person = People::factory()->recycle([$this->user, $this->user->currentTeam])->create();
+    $person = People::factory()->recycle([$this->user, $this->user->currentWorkspace])->create();
 
     expect(EmailsRelationManager::canViewForRecord($person, ViewPeople::class))->toBeFalse()
         ->and(MeetingsRelationManager::canViewForRecord($person, ViewPeople::class))->toBeFalse();
@@ -96,7 +96,7 @@ it('hides emails and meetings relation managers on a person when the feature is 
 it('registers the meetings relation manager on a person when the feature is active', function (): void {
     Feature::activate(EmailIntegration::class);
 
-    $person = People::factory()->recycle([$this->user, $this->user->currentTeam])->create();
+    $person = People::factory()->recycle([$this->user, $this->user->currentWorkspace])->create();
 
     $managers = livewire(ViewPeople::class, ['record' => $person->getKey()])
         ->instance()
@@ -109,7 +109,7 @@ it('registers the meetings relation manager on a person when the feature is acti
 it('forbids listing emails when the viewer has no verified email', function (): void {
     Feature::activate(EmailIntegration::class);
 
-    $unverified = User::factory()->unverified()->withTeam()->create();
+    $unverified = User::factory()->unverified()->withWorkspace()->create();
 
     $this->actingAs($unverified);
 
@@ -119,7 +119,7 @@ it('forbids listing emails when the viewer has no verified email', function (): 
 it('forbids listing meetings when the viewer has no verified email', function (): void {
     Feature::activate(EmailIntegration::class);
 
-    $unverified = User::factory()->unverified()->withTeam()->create();
+    $unverified = User::factory()->unverified()->withWorkspace()->create();
 
     $this->actingAs($unverified);
 

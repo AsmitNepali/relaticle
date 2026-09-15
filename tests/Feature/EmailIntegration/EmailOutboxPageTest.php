@@ -17,13 +17,13 @@ use Relaticle\EmailIntegration\Models\Email;
 mutates(OutboxTable::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 });
@@ -31,7 +31,7 @@ beforeEach(function (): void {
 function makeOutboxEmail(User $user, ConnectedAccount $account, EmailStatus $status, array $overrides = []): Email
 {
     return Email::query()->create(array_merge([
-        'team_id' => $user->currentTeam->id,
+        'workspace_id' => $user->currentWorkspace->id,
         'user_id' => $user->id,
         'connected_account_id' => $account->id,
         'subject' => 'Outbox row',
@@ -43,7 +43,7 @@ function makeOutboxEmail(User $user, ConnectedAccount $account, EmailStatus $sta
 }
 
 it('does not expose Outbox in workspace settings', function (): void {
-    $this->get("/app/{$this->team->slug}/email-settings/outbox")
+    $this->get("/app/{$this->workspace->slug}/email-settings/outbox")
         ->assertNotFound();
 });
 
@@ -51,9 +51,9 @@ it('queued tab shows only this user\'s queued OUTBOUND emails', function (): voi
     $mine = makeOutboxEmail($this->user, $this->account, EmailStatus::QUEUED);
     $failed = makeOutboxEmail($this->user, $this->account, EmailStatus::FAILED);
 
-    $otherUser = User::factory()->withTeam()->create();
+    $otherUser = User::factory()->withWorkspace()->create();
     $otherAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $otherUser->currentTeam->id,
+        'workspace_id' => $otherUser->currentWorkspace->id,
         'user_id' => $otherUser->id,
     ]));
     $theirs = makeOutboxEmail($otherUser, $otherAccount, EmailStatus::QUEUED);
@@ -128,7 +128,7 @@ it('locked failed mode lists every failed email owned by the user', function ():
     ]);
     $firstAccountFailure->forceFill(['created_at' => now()->subYears(3)])->saveQuietly();
     $secondAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
     $secondAccountFailure = makeOutboxEmail($this->user, $secondAccount, EmailStatus::FAILED, [
@@ -136,16 +136,16 @@ it('locked failed mode lists every failed email owned by the user', function ():
     ]);
     $queued = makeOutboxEmail($this->user, $this->account, EmailStatus::QUEUED);
 
-    $teammate = User::factory()->create(['current_team_id' => $this->team->id]);
+    $teammate = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
     $teammateAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $teammate->id,
     ]));
     $teammateFailure = makeOutboxEmail($teammate, $teammateAccount, EmailStatus::FAILED);
 
-    $otherUser = User::factory()->withTeam()->create();
+    $otherUser = User::factory()->withWorkspace()->create();
     $otherAccount = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $otherUser->current_team_id,
+        'workspace_id' => $otherUser->current_workspace_id,
         'user_id' => $otherUser->id,
     ]));
     $otherTeamFailure = makeOutboxEmail($otherUser, $otherAccount, EmailStatus::FAILED);

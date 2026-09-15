@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Services;
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Illuminate\Database\Eloquent\Builder;
 use Relaticle\EmailIntegration\Enums\EmailPrivacyTier;
 use Relaticle\EmailIntegration\Models\Email;
@@ -68,20 +68,20 @@ final readonly class PrivacyService
      * Resolve the default tier to stamp on a newly created email.
      * User preference wins over workspace default.
      *
-     * Pass the mailbox's workspace for background sync. `$user->current_team_id` is
+     * Pass the mailbox's workspace for background sync. `$user->current_workspace_id` is
      * only the owner's currently selected workspace, so using it for imports would
      * stamp another team's default onto this mailbox.
      */
-    public function defaultTierForUser(User $user, ?Team $workspace = null): EmailPrivacyTier
+    public function defaultTierForUser(User $user, ?Workspace $workspace = null): EmailPrivacyTier
     {
         if ($user->default_email_sharing_tier) {
             return $user->default_email_sharing_tier;
         }
 
-        // Resolve the team explicitly (instead of $user->currentTeam, whose accessor
+        // Resolve the team explicitly (instead of $user->currentWorkspace, whose accessor
         // larastan types as never-null and which can auto-switch teams as a side
         // effect) so the null case, a user without a current team, is handled.
-        $team = $workspace ?? ($user->current_team_id !== null ? Team::query()->find($user->current_team_id) : null);
+        $team = $workspace ?? ($user->current_workspace_id !== null ? Workspace::query()->find($user->current_workspace_id) : null);
 
         if ($team === null) {
             return EmailPrivacyTier::METADATA_ONLY;
@@ -95,18 +95,18 @@ final readonly class PrivacyService
         return match (true) {
             $tierValue instanceof EmailPrivacyTier => $tierValue,
             filled($tierValue) => EmailPrivacyTier::from((string) $tierValue),
-            default => $user->currentTeam instanceof Team
-                ? $this->workspaceSharingTier($user->currentTeam)
+            default => $user->currentWorkspace instanceof Workspace
+                ? $this->workspaceSharingTier($user->currentWorkspace)
                 : EmailPrivacyTier::METADATA_ONLY,
         };
     }
 
     public function effectiveSharingTierForUser(User $user): EmailPrivacyTier
     {
-        return $this->defaultTierForUser($user, $user->currentTeam);
+        return $this->defaultTierForUser($user, $user->currentWorkspace);
     }
 
-    public function workspaceSharingTier(Team $team): EmailPrivacyTier
+    public function workspaceSharingTier(Workspace $team): EmailPrivacyTier
     {
         return $team->default_email_sharing_tier ?? EmailPrivacyTier::METADATA_ONLY;
     }
@@ -125,11 +125,11 @@ final readonly class PrivacyService
         }
 
         return EmailShare::query()
-            ->where('team_id', $email->team_id)
+            ->where('workspace_id', $email->workspace_id)
             ->where('shared_with', $viewer->getKey())
             ->whereHas('email', function (Builder $query) use ($email): void {
                 $query
-                    ->where('team_id', $email->team_id)
+                    ->where('workspace_id', $email->workspace_id)
                     ->where('rfc_message_id', $email->rfc_message_id);
             })
             ->first();

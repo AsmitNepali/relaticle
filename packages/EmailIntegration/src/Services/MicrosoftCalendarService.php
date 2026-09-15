@@ -573,6 +573,8 @@ final readonly class MicrosoftCalendarService implements CalendarServiceInterfac
      */
     private function normalize(array $event): CalendarEventData
     {
+        $isAllDay = (bool) ($event['isAllDay'] ?? false);
+
         $startsAt = Date::parse(
             (string) ($event['start']['dateTime'] ?? ''),
             (string) ($event['start']['timeZone'] ?? 'UTC'),
@@ -581,6 +583,12 @@ final readonly class MicrosoftCalendarService implements CalendarServiceInterfac
             (string) ($event['end']['dateTime'] ?? ''),
             (string) ($event['end']['timeZone'] ?? 'UTC'),
         );
+
+        // Graph's all-day end is EXCLUSIVE (midnight of the day after the last day), same as
+        // Google. Subtract a day so ListMeetingsForDay's inclusive ends_at range is correct.
+        if ($isAllDay) {
+            $endsAt = $endsAt->subDay();
+        }
 
         $organizerEmail = $event['organizer']['emailAddress']['address'] ?? null;
 
@@ -604,7 +612,7 @@ final readonly class MicrosoftCalendarService implements CalendarServiceInterfac
             description: $event['bodyPreview'] ?? null,
             startsAt: $startsAt,
             endsAt: $endsAt,
-            isAllDay: (bool) ($event['isAllDay'] ?? false),
+            isAllDay: $isAllDay,
             location: $event['location']['displayName'] ?? null,
             htmlLink: $event['webLink'] ?? null,
             status: ($event['isCancelled'] ?? false) ? 'cancelled' : 'confirmed',

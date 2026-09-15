@@ -64,7 +64,7 @@ final readonly class SendEmailAction
 
         /** @var ConnectedAccount $account */
         $account = ConnectedAccount::query()
-            ->ownedBy($user, $user->currentTeam)
+            ->ownedBy($user, $user->currentWorkspace)
             ->whereKey($data['connected_account_id'])
             ->firstOrFail();
 
@@ -106,14 +106,14 @@ final readonly class SendEmailAction
             /** @var Email|null $inReplyTo */
             $inReplyTo = isset($data['in_reply_to_email_id'])
                 ? Email::query()
-                    ->where('team_id', $account->team_id)
+                    ->where('workspace_id', $account->workspace_id)
                     ->whereKey($data['in_reply_to_email_id'])
                     ->first()
                 : null;
 
             /** @var Email $email */
             $email = Email::query()->create([
-                'team_id' => $account->team_id,
+                'workspace_id' => $account->workspace_id,
                 'user_id' => $account->user_id,
                 'connected_account_id' => $account->getKey(),
                 // Stamp a stable RFC Message-ID now (used as the outgoing Message-ID

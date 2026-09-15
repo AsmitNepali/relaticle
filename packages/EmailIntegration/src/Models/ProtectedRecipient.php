@@ -27,7 +27,7 @@ final class ProtectedRecipient extends Model
     }
 
     protected $fillable = [
-        'team_id',
+        'workspace_id',
         'type',
         'value',
         'created_by',

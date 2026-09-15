@@ -15,7 +15,7 @@ final readonly class CreateEmailTemplateAction
     public function execute(User $user, array $data): EmailTemplate
     {
         return EmailTemplate::query()->create([
-            'team_id' => $user->current_team_id,
+            'workspace_id' => $user->current_workspace_id,
             'created_by' => $user->getKey(),
             'name' => $data['name'],
             'subject' => $data['subject'],

@@ -288,7 +288,7 @@ abstract class BaseRecordEmailsPage extends Page
         /** @var list<string> */
         return ConnectedAccount::query()
             ->where('user_id', $user->getKey())
-            ->where('team_id', $user->current_team_id)
+            ->where('workspace_id', $user->current_workspace_id)
             ->pluck('email_address')
             ->map(fn (mixed $address): string => mb_strtolower((string) $address))
             ->filter()

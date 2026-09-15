@@ -29,18 +29,18 @@ use Relaticle\EmailIntegration\Services\EmailSendingService;
 mutates(SendEmailJob::class, SyncEmailBatchCountersAction::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
-    $this->team = $this->user->currentTeam;
+    $this->user = User::factory()->withWorkspace()->create();
+    $this->workspace = $this->user->currentWorkspace;
 
     $this->account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 });
 
 it('records exception class and message on the email when the job fails', function (): void {
     $email = Email::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'subject' => 'Outbound',
@@ -61,7 +61,7 @@ it('records exception class and message on the email when the job fails', functi
 
 it('does not mark a delivered email as failed when a later job step throws', function (): void {
     $email = Email::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'subject' => 'Outbound',
@@ -81,7 +81,7 @@ it('does not mark a delivered email as failed when a later job step throws', fun
 
 it('logs the full exception when the job fails', function (): void {
     $email = Email::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'subject' => 'Outbound',
@@ -106,7 +106,7 @@ it('logs the full exception when the job fails', function (): void {
 
 it('completes the batch when a later step fails after the provider already accepted the message', function (): void {
     $batch = EmailBatch::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'total_recipients' => 1,
@@ -116,7 +116,7 @@ it('completes the batch when a later step fails after the provider already accep
     ]);
 
     $email = Email::factory()->outbound()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'batch_id' => $batch->getKey(),
@@ -227,7 +227,7 @@ it('completes the batch when a later step fails after the provider already accep
 it('retries linking after a post-send crash without double-counting the batch or CRM metrics', function (): void {
     $emailsField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', $this->team->getKey())
+        ->where('tenant_id', $this->workspace->getKey())
         ->where('entity_type', 'people')
         ->where('code', PeopleField::EMAILS->value)
         ->first();
@@ -237,16 +237,16 @@ it('retries linking after a post-send crash without double-counting the batch or
     }
 
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Retry Link Person',
         'creator_id' => $this->user->id,
         'email_count' => 0,
         'outbound_email_count' => 0,
     ]);
-    $person->saveCustomFieldValue($emailsField, ['recipient@partner.com'], $this->team);
+    $person->saveCustomFieldValue($emailsField, ['recipient@partner.com'], $this->workspace);
 
     $batch = EmailBatch::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'total_recipients' => 1,
@@ -256,7 +256,7 @@ it('retries linking after a post-send crash without double-counting the batch or
     ]);
 
     $email = Email::factory()->outbound()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'batch_id' => $batch->getKey(),
@@ -380,7 +380,7 @@ it('retries linking after a post-send crash without double-counting the batch or
 
 it('completes the batch when a job finds the email already cancelled', function (): void {
     $batch = EmailBatch::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'total_recipients' => 2,
@@ -390,7 +390,7 @@ it('completes the batch when a job finds the email already cancelled', function 
     ]);
 
     Email::factory()->outbound()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'batch_id' => $batch->getKey(),
@@ -400,7 +400,7 @@ it('completes the batch when a job finds the email already cancelled', function 
     ]);
 
     $cancelled = Email::factory()->outbound()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
         'batch_id' => $batch->getKey(),

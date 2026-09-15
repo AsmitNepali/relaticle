@@ -5,8 +5,8 @@ declare(strict_types=1);
 use App\Enums\CustomFields\PeopleField;
 use App\Models\CustomField;
 use App\Models\People;
-use App\Models\TeamInvitation;
 use App\Models\User;
+use App\Models\WorkspaceInvitation;
 use Relaticle\EmailIntegration\Enums\ConnectionStrength;
 use Relaticle\EmailIntegration\Enums\EmailVisibilityEnforcement;
 use Relaticle\EmailIntegration\Models\ConnectedAccount;
@@ -19,33 +19,33 @@ use Relaticle\EmailIntegration\Services\EmailVisibilityService;
 mutates(EmailVisibilityService::class, VisibleMeetingScope::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create([
+    $this->user = User::factory()->withWorkspace()->create([
         'email' => 'owner@thefireflytech.com',
     ]);
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
+    $this->workspace = $this->user->currentWorkspace;
 
     $this->service = app(EmailVisibilityService::class);
 });
 
 it('infers workspace domains from member emails and connected accounts', function (): void {
     ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'email_address' => 'sales@thefireflytech.com',
     ]));
 
-    expect($this->service->workspaceDomains($this->team))->toBe(['thefireflytech.com']);
+    expect($this->service->workspaceDomains($this->workspace))->toBe(['thefireflytech.com']);
 });
 
 it('ignores consumer email domains when inferring workspace domains', function (): void {
     $this->user->update(['email' => 'owner@gmail.com']);
 
-    expect($this->service->workspaceDomains($this->team))->toBe([]);
+    expect($this->service->workspaceDomains($this->workspace))->toBe([]);
 });
 
 it('includes system default visibility rows for members and workspace domains', function (): void {
-    $rows = $this->service->visibilityTableRows($this->team, collect());
+    $rows = $this->service->visibilityTableRows($this->workspace, collect());
 
     expect($rows)->toHaveCount(2)
         ->and($rows[0]['address'])->toBe(__('filament/pages/email-privacy-settings.visibility.table.members_row'))
@@ -54,21 +54,21 @@ it('includes system default visibility rows for members and workspace domains', 
 
 it('treats connected mailbox addresses as protected member emails', function (): void {
     ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'email_address' => 'whitesacks.dev@gmail.com',
     ]));
 
-    expect($this->service->memberEmailsForTeam($this->team))->toContain('whitesacks.dev@gmail.com');
+    expect($this->service->memberEmailsForTeam($this->workspace))->toContain('whitesacks.dev@gmail.com');
 });
 
 it('treats pending invitee emails as protected member emails', function (): void {
-    TeamInvitation::factory()->create([
-        'team_id' => $this->team->id,
+    WorkspaceInvitation::factory()->create([
+        'workspace_id' => $this->workspace->id,
         'email' => 'pending@thefireflytech.com',
     ]);
 
-    expect($this->service->memberEmailsForTeam($this->team))->toContain('pending@thefireflytech.com');
+    expect($this->service->memberEmailsForTeam($this->workspace))->toContain('pending@thefireflytech.com');
 });
 
 it('normalizes domain input before matching visibility rules', function (): void {
@@ -80,13 +80,13 @@ it('hides custom visibility rows that duplicate inferred workspace domains', fun
     $this->user->update(['email' => 'owner@outskill.com']);
 
     TeamEmailBlocklist::factory()->protected()->domain('outskill.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
     ]);
 
     $rows = $this->service->visibilityTableRows(
-        $this->team,
-        TeamEmailBlocklist::query()->where('team_id', $this->team->id)->get(),
+        $this->workspace,
+        TeamEmailBlocklist::query()->where('workspace_id', $this->workspace->id)->get(),
     );
 
     expect(collect($rows)->where('address', 'outskill.com')->count())->toBe(1)
@@ -96,23 +96,23 @@ it('hides custom visibility rows that duplicate inferred workspace domains', fun
 
 it('prefers blocked over protected when resolving record mailbox copy', function (): void {
     $person = People::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'creator_id' => $this->user->id,
     ]);
 
     TeamEmailBlocklist::factory()->blocked()->email('blocked@contact.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
     ]);
 
     $emailsField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', $person->team_id)
+        ->where('tenant_id', $person->workspace_id)
         ->where('entity_type', 'people')
         ->where('code', PeopleField::EMAILS->value)
         ->firstOrFail();
 
-    $person->saveCustomFieldValue($emailsField, ['blocked@contact.com'], $person->team);
+    $person->saveCustomFieldValue($emailsField, ['blocked@contact.com'], $person->workspace);
 
     expect($this->service->recordMailboxHiddenEnforcement($person))
         ->toBe(EmailVisibilityEnforcement::Blocked)
@@ -123,46 +123,46 @@ it('prefers blocked over protected when resolving record mailbox copy', function
 it('suppresses record creation for workspace member emails', function (): void {
     expect($this->service->suppressesRecordCreation(
         'owner@thefireflytech.com',
-        $this->team->getKey(),
+        $this->workspace->getKey(),
         null,
     ))->toBeTrue();
 
     expect($this->service->suppressesRecordCreation(
         'external@partner.com',
-        $this->team->getKey(),
+        $this->workspace->getKey(),
         null,
     ))->toBeFalse();
 });
 
 it('scopes communication intelligence metrics to mail the viewer can see', function (): void {
-    $person = People::factory()->for($this->team)->create([
+    $person = People::factory()->for($this->workspace)->create([
         'email_count' => 99,
         'inbound_email_count' => 50,
         'outbound_email_count' => 49,
     ]);
 
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
     $visible = Email::factory()->inbound()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $account->getKey(),
     ]);
     $person->emails()->attach($visible->getKey());
 
-    $coworker = User::factory()->create(['current_team_id' => $this->team->id]);
-    $this->team->users()->attach($coworker, ['role' => 'editor']);
+    $coworker = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->users()->attach($coworker, ['role' => 'editor']);
 
     $coworkerAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $coworker->id,
     ]));
 
     $private = Email::factory()->private()->outbound()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $coworker->id,
         'connected_account_id' => $coworkerAccount->getKey(),
     ]);
@@ -176,18 +176,18 @@ it('scopes communication intelligence metrics to mail the viewer can see', funct
         ->and($metrics->connectionStrength)->not->toBe(ConnectionStrength::None);
 });
 
-it('computes calendar intelligence without an ambiguous team_id join', function (): void {
-    $person = People::factory()->for($this->team)->create();
+it('computes calendar intelligence without an ambiguous workspace_id join', function (): void {
+    $person = People::factory()->for($this->workspace)->create();
 
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
     $startsAt = now()->addDay();
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $account->getKey(),
         'starts_at' => $startsAt,
         'ends_at' => $startsAt->copy()->addHour(),
@@ -203,18 +203,18 @@ it('computes calendar intelligence without an ambiguous team_id join', function 
 });
 
 it('counts one preferred copy when the same rfc message is synced twice', function (): void {
-    $person = People::factory()->for($this->team)->create();
+    $person = People::factory()->for($this->workspace)->create();
 
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
-    $coworker = User::factory()->create(['current_team_id' => $this->team->id]);
-    $this->team->users()->attach($coworker, ['role' => 'editor']);
+    $coworker = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->users()->attach($coworker, ['role' => 'editor']);
 
     $coworkerAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $coworker->id,
     ]));
 
@@ -222,7 +222,7 @@ it('counts one preferred copy when the same rfc message is synced twice', functi
     $preferredSentAt = now()->subHour();
 
     $preferred = Email::factory()->inbound()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $account->getKey(),
         'rfc_message_id' => $messageId,
@@ -230,7 +230,7 @@ it('counts one preferred copy when the same rfc message is synced twice', functi
         'is_internal' => false,
     ]);
     $duplicate = Email::factory()->outbound()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $coworker->id,
         'connected_account_id' => $coworkerAccount->getKey(),
         'rfc_message_id' => $messageId,
@@ -249,32 +249,32 @@ it('counts one preferred copy when the same rfc message is synced twice', functi
 });
 
 it('counts one preferred copy for every viewer of the same rfc message', function (): void {
-    $person = People::factory()->for($this->team)->create();
+    $person = People::factory()->for($this->workspace)->create();
 
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
-    $coworker = User::factory()->create(['current_team_id' => $this->team->id]);
-    $this->team->users()->attach($coworker, ['role' => 'editor']);
+    $coworker = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->users()->attach($coworker, ['role' => 'editor']);
 
     $coworkerAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $coworker->id,
     ]));
 
     $messageId = '<workspace-sent@example.com>';
 
     $ownerInbound = Email::factory()->inbound()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $account->getKey(),
         'rfc_message_id' => $messageId,
         'is_internal' => false,
     ]);
     $coworkerOutbound = Email::factory()->outbound()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $coworker->id,
         'connected_account_id' => $coworkerAccount->getKey(),
         'rfc_message_id' => $messageId,

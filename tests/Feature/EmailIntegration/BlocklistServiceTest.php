@@ -14,13 +14,13 @@ use Relaticle\EmailIntegration\Services\BlocklistService;
 mutates(BlocklistService::class);
 
 beforeEach(function (): void {
-    $this->owner = User::factory()->withTeam()->create();
+    $this->owner = User::factory()->withWorkspace()->create();
     $this->actingAs($this->owner);
-    $this->team = $this->owner->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->owner->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
     ]));
 
@@ -30,7 +30,7 @@ beforeEach(function (): void {
 function makeBlocklistEmail(array $overrides = []): Email
 {
     return Email::factory()->create(array_merge([
-        'team_id' => test()->team->id,
+        'workspace_id' => test()->workspace->id,
         'user_id' => test()->owner->id,
         'connected_account_id' => test()->account->getKey(),
     ], $overrides));
@@ -59,7 +59,7 @@ it('returns false when account has no blocklist entries', function (): void {
 it('returns true when participant matches a blocked email address', function (): void {
     EmailBlocklist::factory()->email('spam@badactor.com')->create([
         'user_id' => $this->owner->id,
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->getKey(),
     ]);
 
@@ -76,7 +76,7 @@ it('returns true when participant matches a blocked email address', function ():
 it('returns true when participant matches a blocked domain', function (): void {
     EmailBlocklist::factory()->domain('badactor.com')->create([
         'user_id' => $this->owner->id,
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->getKey(),
     ]);
 
@@ -93,7 +93,7 @@ it('returns true when participant matches a blocked domain', function (): void {
 it('returns false when participant does not match any blocklist entry', function (): void {
     EmailBlocklist::factory()->email('spam@badactor.com')->create([
         'user_id' => $this->owner->id,
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->getKey(),
     ]);
 
@@ -110,7 +110,7 @@ it('returns false when participant does not match any blocklist entry', function
 it('performs case-insensitive matching on email addresses', function (): void {
     EmailBlocklist::factory()->email('spam@badactor.com')->create([
         'user_id' => $this->owner->id,
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->getKey(),
     ]);
 
@@ -127,7 +127,7 @@ it('performs case-insensitive matching on email addresses', function (): void {
 it('performs case-insensitive matching on domains', function (): void {
     EmailBlocklist::factory()->domain('BADACTOR.COM')->create([
         'user_id' => $this->owner->id,
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->getKey(),
     ]);
 
@@ -143,13 +143,13 @@ it('performs case-insensitive matching on domains', function (): void {
 
 it('only checks this mailbox blocklist, not another connected account', function (): void {
     $otherAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
     ]));
 
     EmailBlocklist::factory()->email('spam@badactor.com')->create([
         'user_id' => $this->owner->id,
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $otherAccount->getKey(),
     ]);
 
@@ -166,7 +166,7 @@ it('only checks this mailbox blocklist, not another connected account', function
 it('returns true when any one of multiple participants matches blocklist', function (): void {
     EmailBlocklist::factory()->email('blocked@example.com')->create([
         'user_id' => $this->owner->id,
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->getKey(),
     ]);
 
@@ -187,7 +187,7 @@ it('returns true when any one of multiple participants matches blocklist', funct
 
 it('returns true when participant matches the workspace blocklist', function (): void {
     TeamEmailBlocklist::factory()->blocked()->email('spam@badactor.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->owner->id,
     ]);
 

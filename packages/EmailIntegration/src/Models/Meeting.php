@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Relaticle\EmailIntegration\Models;
 
 use App\Models\Company;
-use App\Models\Concerns\HasTeam;
+use App\Models\Concerns\HasWorkspace;
 use App\Models\Opportunity;
 use App\Models\People;
 use Carbon\CarbonInterface;
@@ -26,7 +26,7 @@ use Relaticle\EmailIntegration\Observers\MeetingObserver;
 
 /**
  * @property string $id
- * @property string $team_id
+ * @property string $workspace_id
  * @property string $connected_account_id
  * @property string $provider_event_id
  * @property string|null $provider_recurring_event_id
@@ -48,10 +48,10 @@ use Relaticle\EmailIntegration\Observers\MeetingObserver;
 final class Meeting extends Model
 {
     /** @use HasFactory<MeetingFactory> */
-    use HasFactory, HasTeam, HasUlids, SoftDeletes;
+    use HasFactory, HasUlids, HasWorkspace, SoftDeletes;
 
     protected $fillable = [
-        'team_id',
+        'workspace_id',
         'connected_account_id',
         'provider_event_id',
         'provider_recurring_event_id',

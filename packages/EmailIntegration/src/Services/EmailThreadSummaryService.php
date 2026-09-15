@@ -170,7 +170,7 @@ final readonly class EmailThreadSummaryService
         $thread->aiSummary()->delete();
 
         return AiSummary::query()->create([
-            'team_id' => $teamId,
+            'workspace_id' => $teamId,
             'summarizable_type' => $thread->getMorphClass(),
             'summarizable_id' => $thread->getKey(),
             'summary' => $response->text,

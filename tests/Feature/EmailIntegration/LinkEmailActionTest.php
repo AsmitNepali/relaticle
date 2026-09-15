@@ -26,13 +26,13 @@ mutates(AutoCreatePersonAction::class);
 mutates(AutoCreateCompanyAction::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 });
@@ -40,7 +40,7 @@ beforeEach(function (): void {
 function makeLinkEmail(array $overrides = []): Email
 {
     return Email::factory()->create(array_merge([
-        'team_id' => test()->team->id,
+        'workspace_id' => test()->workspace->id,
         'user_id' => test()->user->id,
         'connected_account_id' => test()->account->getKey(),
     ], $overrides));
@@ -49,19 +49,19 @@ function makeLinkEmail(array $overrides = []): Email
 it('links email to an existing company matched by domain', function (): void {
     $domainsField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', $this->team->getKey())
+        ->where('tenant_id', $this->workspace->getKey())
         ->where('entity_type', 'company')
         ->where('code', 'domains')
         ->first();
 
     $company = Company::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Acme',
         'creator_id' => $this->user->id,
     ]);
 
     if ($domainsField) {
-        $company->saveCustomFieldValue($domainsField, 'https://acme.com', $this->team);
+        $company->saveCustomFieldValue($domainsField, 'https://acme.com', $this->workspace);
     }
 
     $email = makeLinkEmail();
@@ -83,7 +83,7 @@ it('links email to an existing company matched by domain', function (): void {
 it('does not match a company on a substring domain collision', function (): void {
     $domainsField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', $this->team->getKey())
+        ->where('tenant_id', $this->workspace->getKey())
         ->where('entity_type', 'company')
         ->where('code', 'domains')
         ->first();
@@ -93,12 +93,12 @@ it('does not match a company on a substring domain collision', function (): void
     }
 
     $company = Company::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Acme AU',
         'creator_id' => $this->user->id,
     ]);
 
-    $company->saveCustomFieldValue($domainsField, 'https://acme.com.au', $this->team);
+    $company->saveCustomFieldValue($domainsField, 'https://acme.com.au', $this->workspace);
 
     $email = makeLinkEmail();
 
@@ -116,7 +116,7 @@ it('does not match a company on a substring domain collision', function (): void
 it('does not treat LIKE wildcards in the sender domain as a match', function (): void {
     $domainsField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', $this->team->getKey())
+        ->where('tenant_id', $this->workspace->getKey())
         ->where('entity_type', 'company')
         ->where('code', 'domains')
         ->first();
@@ -126,12 +126,12 @@ it('does not treat LIKE wildcards in the sender domain as a match', function ():
     }
 
     $company = Company::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Wildcard Co',
         'creator_id' => $this->user->id,
     ]);
 
-    $company->saveCustomFieldValue($domainsField, 'https://wildcard.com', $this->team);
+    $company->saveCustomFieldValue($domainsField, 'https://wildcard.com', $this->workspace);
 
     $email = makeLinkEmail();
 
@@ -160,7 +160,7 @@ it('skips company matching for public email domains', function (): void {
 
 it('skips company matching for team-specific public domains', function (): void {
     PublicEmailDomain::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'domain' => 'internal-mailer.com',
     ]);
 
@@ -179,7 +179,7 @@ it('skips company matching for team-specific public domains', function (): void 
 it('links email to an existing person matched by email custom field', function (): void {
     $emailField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', $this->team->getKey())
+        ->where('tenant_id', $this->workspace->getKey())
         ->where('entity_type', 'people')
         ->where('code', 'emails')
         ->first();
@@ -189,12 +189,12 @@ it('links email to an existing person matched by email custom field', function (
     }
 
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Jane Doe',
         'creator_id' => $this->user->id,
     ]);
 
-    $person->saveCustomFieldValue($emailField, ['jane@external.com'], $this->team);
+    $person->saveCustomFieldValue($emailField, ['jane@external.com'], $this->workspace);
 
     $email = makeLinkEmail();
 
@@ -211,7 +211,7 @@ it('links email to an existing person matched by email custom field', function (
 it('updates participant contact_id when linked to a person', function (): void {
     $emailField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', $this->team->getKey())
+        ->where('tenant_id', $this->workspace->getKey())
         ->where('entity_type', 'people')
         ->where('code', 'emails')
         ->first();
@@ -221,12 +221,12 @@ it('updates participant contact_id when linked to a person', function (): void {
     }
 
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Bob Smith',
         'creator_id' => $this->user->id,
     ]);
 
-    $person->saveCustomFieldValue($emailField, ['bob@partner.com'], $this->team);
+    $person->saveCustomFieldValue($emailField, ['bob@partner.com'], $this->workspace);
 
     $email = makeLinkEmail();
 
@@ -241,7 +241,7 @@ it('updates participant contact_id when linked to a person', function (): void {
 });
 
 it('does not auto-create companies when auto_create_companies is false', function (): void {
-    $this->team->update([
+    $this->workspace->update([
         'contact_creation_mode' => ContactCreationMode::All,
         'auto_create_companies' => false,
     ]);
@@ -253,15 +253,15 @@ it('does not auto-create companies when auto_create_companies is false', functio
         'email_address' => 'unknown@unknowncorp.com',
     ]);
 
-    $countBefore = Company::where('team_id', $this->team->id)->count();
+    $countBefore = Company::where('workspace_id', $this->workspace->id)->count();
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(Company::where('team_id', $this->team->id)->count())->toBe($countBefore);
+    expect(Company::where('workspace_id', $this->workspace->id)->count())->toBe($countBefore);
 });
 
 it('does not auto-create a company when record creation is None', function (): void {
-    $this->team->update([
+    $this->workspace->update([
         'contact_creation_mode' => ContactCreationMode::None,
         'auto_create_companies' => true,
     ]);
@@ -273,15 +273,15 @@ it('does not auto-create a company when record creation is None', function (): v
         'email_address' => 'prospect@none-corp.com',
     ]);
 
-    $countBefore = Company::where('team_id', $this->team->id)->count();
+    $countBefore = Company::where('workspace_id', $this->workspace->id)->count();
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(Company::where('team_id', $this->team->id)->count())->toBe($countBefore);
+    expect(Company::where('workspace_id', $this->workspace->id)->count())->toBe($countBefore);
 });
 
 it('does not auto-create a company in Selective mode for inbound-only addresses', function (): void {
-    $this->team->update([
+    $this->workspace->update([
         'contact_creation_mode' => ContactCreationMode::Selective,
         'auto_create_companies' => true,
     ]);
@@ -293,15 +293,15 @@ it('does not auto-create a company in Selective mode for inbound-only addresses'
         'email_address' => 'inbound@selective-corp.com',
     ]);
 
-    $countBefore = Company::where('team_id', $this->team->id)->count();
+    $countBefore = Company::where('workspace_id', $this->workspace->id)->count();
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(Company::where('team_id', $this->team->id)->count())->toBe($countBefore);
+    expect(Company::where('workspace_id', $this->workspace->id)->count())->toBe($countBefore);
 });
 
 it('auto-creates a company in Selective mode for outbound addresses', function (): void {
-    $this->team->update([
+    $this->workspace->update([
         'contact_creation_mode' => ContactCreationMode::Selective,
         'auto_create_companies' => true,
     ]);
@@ -315,13 +315,13 @@ it('auto-creates a company in Selective mode for outbound addresses', function (
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(Company::where('team_id', $this->team->id)->where('name', 'Selective-corp')->exists())->toBeTrue();
+    expect(Company::where('workspace_id', $this->workspace->id)->where('name', 'Selective-corp')->exists())->toBeTrue();
 });
 
 it('does not auto-create a company when the person already exists', function (): void {
     $emailField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', $this->team->getKey())
+        ->where('tenant_id', $this->workspace->getKey())
         ->where('entity_type', 'people')
         ->where('code', 'emails')
         ->first();
@@ -330,19 +330,19 @@ it('does not auto-create a company when the person already exists', function ():
         $this->markTestSkipped('No emails custom field seeded for this team.');
     }
 
-    $this->team->update([
+    $this->workspace->update([
         'contact_creation_mode' => ContactCreationMode::All,
         'auto_create_companies' => true,
     ]);
 
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Known Contact',
         'creator_id' => $this->user->id,
     ]);
-    $person->saveCustomFieldValue($emailField, ['known@orphan-corp.com'], $this->team);
+    $person->saveCustomFieldValue($emailField, ['known@orphan-corp.com'], $this->workspace);
 
-    $countBefore = Company::where('team_id', $this->team->id)->count();
+    $countBefore = Company::where('workspace_id', $this->workspace->id)->count();
 
     $email = makeLinkEmail();
     EmailParticipant::factory()->from()->create([
@@ -352,16 +352,16 @@ it('does not auto-create a company when the person already exists', function ():
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(Company::where('team_id', $this->team->id)->count())->toBe($countBefore);
+    expect(Company::where('workspace_id', $this->workspace->id)->count())->toBe($countBefore);
 });
 
 it('does not auto-create a company for a www-prefixed public domain', function (): void {
-    $this->team->update([
+    $this->workspace->update([
         'contact_creation_mode' => ContactCreationMode::All,
         'auto_create_companies' => true,
     ]);
 
-    $countBefore = Company::where('team_id', $this->team->id)->count();
+    $countBefore = Company::where('workspace_id', $this->workspace->id)->count();
 
     $email = makeLinkEmail();
     EmailParticipant::factory()->from()->create([
@@ -371,11 +371,11 @@ it('does not auto-create a company for a www-prefixed public domain', function (
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(Company::where('team_id', $this->team->id)->count())->toBe($countBefore);
+    expect(Company::where('workspace_id', $this->workspace->id)->count())->toBe($countBefore);
 });
 
 it('does not auto-create a company for a www-prefixed configured public domain', function (): void {
-    $this->team->update([
+    $this->workspace->update([
         'contact_creation_mode' => ContactCreationMode::All,
         'auto_create_companies' => true,
     ]);
@@ -385,7 +385,7 @@ it('does not auto-create a company for a www-prefixed configured public domain',
         'www.example.com',
     ]);
 
-    $countBefore = Company::where('team_id', $this->team->id)->count();
+    $countBefore = Company::where('workspace_id', $this->workspace->id)->count();
 
     $email = makeLinkEmail();
     EmailParticipant::factory()->from()->create([
@@ -396,22 +396,22 @@ it('does not auto-create a company for a www-prefixed configured public domain',
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(Company::where('team_id', $this->team->id)->count())->toBe($countBefore)
-        ->and(People::where('team_id', $this->team->id)->where('name', 'Public Domain Contact')->exists())->toBeTrue();
+    expect(Company::where('workspace_id', $this->workspace->id)->count())->toBe($countBefore)
+        ->and(People::where('workspace_id', $this->workspace->id)->where('name', 'Public Domain Contact')->exists())->toBeTrue();
 });
 
 it('does not auto-create a company for a www-prefixed team public domain', function (): void {
-    $this->team->update([
+    $this->workspace->update([
         'contact_creation_mode' => ContactCreationMode::All,
         'auto_create_companies' => true,
     ]);
 
     PublicEmailDomain::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'domain' => 'www.example.com',
     ]);
 
-    $countBefore = Company::where('team_id', $this->team->id)->count();
+    $countBefore = Company::where('workspace_id', $this->workspace->id)->count();
 
     $email = makeLinkEmail();
     EmailParticipant::factory()->from()->create([
@@ -422,12 +422,12 @@ it('does not auto-create a company for a www-prefixed team public domain', funct
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(Company::where('team_id', $this->team->id)->count())->toBe($countBefore)
-        ->and(People::where('team_id', $this->team->id)->where('name', 'Team Public Domain Contact')->exists())->toBeTrue();
+    expect(Company::where('workspace_id', $this->workspace->id)->count())->toBe($countBefore)
+        ->and(People::where('workspace_id', $this->workspace->id)->where('name', 'Team Public Domain Contact')->exists())->toBeTrue();
 });
 
 it('auto-creates a company when auto_create_companies is true', function (): void {
-    $this->team->update([
+    $this->workspace->update([
         'contact_creation_mode' => ContactCreationMode::All,
         'auto_create_companies' => true,
     ]);
@@ -441,11 +441,11 @@ it('auto-creates a company when auto_create_companies is true', function (): voi
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(Company::where('team_id', $this->team->id)->where('name', 'Brandnewcorp')->exists())->toBeTrue();
+    expect(Company::where('workspace_id', $this->workspace->id)->where('name', 'Brandnewcorp')->exists())->toBeTrue();
 });
 
 it('derives the company name from the registrable domain, not a mail subdomain', function (): void {
-    $this->team->update([
+    $this->workspace->update([
         'contact_creation_mode' => ContactCreationMode::All,
         'auto_create_companies' => true,
     ]);
@@ -459,16 +459,16 @@ it('derives the company name from the registrable domain, not a mail subdomain',
 
     app(LinkEmailAction::class)->execute($email);
 
-    $company = Company::where('team_id', $this->team->id)
+    $company = Company::where('workspace_id', $this->workspace->id)
         ->where('name', 'Anthropic')
         ->with('customFieldValues.customField')
         ->first();
 
     expect($company)->not->toBeNull()
-        ->and(Company::where('team_id', $this->team->id)->where('name', 'Email')->exists())->toBeFalse();
+        ->and(Company::where('workspace_id', $this->workspace->id)->where('name', 'Email')->exists())->toBeFalse();
 
     $domainsField = CustomField::query()
-        ->where('tenant_id', $this->team->id)
+        ->where('tenant_id', $this->workspace->id)
         ->where('entity_type', 'company')
         ->where('code', 'domains')
         ->first();
@@ -480,7 +480,7 @@ it('derives the company name from the registrable domain, not a mail subdomain',
 });
 
 it('derives the company name from the registrable label across TLD shapes', function (string $address, string $expected): void {
-    $this->team->update([
+    $this->workspace->update([
         'contact_creation_mode' => ContactCreationMode::All,
         'auto_create_companies' => true,
     ]);
@@ -494,7 +494,7 @@ it('derives the company name from the registrable label across TLD shapes', func
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(Company::where('team_id', $this->team->id)->where('name', $expected)->exists())->toBeTrue();
+    expect(Company::where('workspace_id', $this->workspace->id)->where('name', $expected)->exists())->toBeTrue();
 })->with([
     'plain TLD' => ['john@acme.com', 'Acme'],
     'mail subdomain' => ['john@mail.acme.io', 'Acme'],
@@ -506,7 +506,7 @@ it('derives the company name from the registrable label across TLD shapes', func
 ]);
 
 it('does not auto-create a company for a no-reply / automated sender', function (): void {
-    $this->team->update([
+    $this->workspace->update([
         'contact_creation_mode' => ContactCreationMode::All,
         'auto_create_companies' => true,
     ]);
@@ -518,15 +518,15 @@ it('does not auto-create a company for a no-reply / automated sender', function 
         'email_address' => 'notice@email.anthropic.com',
     ]);
 
-    $countBefore = Company::where('team_id', $this->team->id)->count();
+    $countBefore = Company::where('workspace_id', $this->workspace->id)->count();
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(Company::where('team_id', $this->team->id)->count())->toBe($countBefore);
+    expect(Company::where('workspace_id', $this->workspace->id)->count())->toBe($countBefore);
 });
 
 it('does not auto-create a person for a no-reply / automated sender', function (): void {
-    $this->team->update(['contact_creation_mode' => ContactCreationMode::All]);
+    $this->workspace->update(['contact_creation_mode' => ContactCreationMode::All]);
 
     $email = makeLinkEmail();
 
@@ -536,15 +536,15 @@ it('does not auto-create a person for a no-reply / automated sender', function (
         'name' => 'Partner Notifications',
     ]);
 
-    $countBefore = People::where('team_id', $this->team->id)->count();
+    $countBefore = People::where('workspace_id', $this->workspace->id)->count();
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(People::where('team_id', $this->team->id)->count())->toBe($countBefore);
+    expect(People::where('workspace_id', $this->workspace->id)->count())->toBe($countBefore);
 });
 
 it('seeds an auto-created company with a protocol-less domain and ICP set to false', function (): void {
-    $this->team->update([
+    $this->workspace->update([
         'contact_creation_mode' => ContactCreationMode::All,
         'auto_create_companies' => true,
     ]);
@@ -558,19 +558,19 @@ it('seeds an auto-created company with a protocol-less domain and ICP set to fal
 
     app(LinkEmailAction::class)->execute($email);
 
-    $company = Company::where('team_id', $this->team->id)
+    $company = Company::where('workspace_id', $this->workspace->id)
         ->where('name', 'Brandnewcorp')
         ->with('customFieldValues.customField')
         ->firstOrFail();
 
     $domainsField = CustomField::query()
-        ->where('tenant_id', $this->team->id)
+        ->where('tenant_id', $this->workspace->id)
         ->where('entity_type', 'company')
         ->where('code', 'domains')
         ->first();
 
     $icpField = CustomField::query()
-        ->where('tenant_id', $this->team->id)
+        ->where('tenant_id', $this->workspace->id)
         ->where('entity_type', 'company')
         ->where('code', 'icp')
         ->first();
@@ -587,7 +587,7 @@ it('seeds an auto-created company with a protocol-less domain and ICP set to fal
 });
 
 it('creates distinct companies for different subdomains of the same apex', function (): void {
-    $this->team->update([
+    $this->workspace->update([
         'contact_creation_mode' => ContactCreationMode::All,
         'auto_create_companies' => true,
     ]);
@@ -602,12 +602,12 @@ it('creates distinct companies for different subdomains of the same apex', funct
     }
 
     $domainsField = CustomField::query()
-        ->where('tenant_id', $this->team->id)
+        ->where('tenant_id', $this->workspace->id)
         ->where('entity_type', 'company')
         ->where('code', 'domains')
         ->first();
 
-    $companies = Company::where('team_id', $this->team->id)
+    $companies = Company::where('workspace_id', $this->workspace->id)
         ->where('creation_source', CreationSource::SYSTEM)
         ->where('name', 'Printtest')
         ->with('customFieldValues.customField')
@@ -625,7 +625,7 @@ it('creates distinct companies for different subdomains of the same apex', funct
 });
 
 it('reuses one company when the host only differs by a www prefix', function (): void {
-    $this->team->update([
+    $this->workspace->update([
         'contact_creation_mode' => ContactCreationMode::All,
         'auto_create_companies' => true,
     ]);
@@ -644,7 +644,7 @@ it('reuses one company when the host only differs by a www prefix', function ():
     ]);
     app(LinkEmailAction::class)->execute($second);
 
-    expect(Company::where('team_id', $this->team->id)
+    expect(Company::where('workspace_id', $this->workspace->id)
         ->where('creation_source', CreationSource::SYSTEM)
         ->where('name', 'Cap')
         ->count())->toBe(1);
@@ -653,53 +653,53 @@ it('reuses one company when the host only differs by a www prefix', function ():
 it('does not create a duplicate company when the domain is already owned', function (): void {
     $action = app(AutoCreateCompanyAction::class);
 
-    $first = $action->execute('brandnewcorp.com', $this->team->id, $this->team);
-    $second = $action->execute('brandnewcorp.com', $this->team->id, $this->team);
+    $first = $action->execute('brandnewcorp.com', $this->workspace->id, $this->workspace);
+    $second = $action->execute('brandnewcorp.com', $this->workspace->id, $this->workspace);
 
     expect($second->getKey())->toBe($first->getKey());
-    expect(Company::where('team_id', $this->team->id)->where('name', 'Brandnewcorp')->count())->toBe(1);
+    expect(Company::where('workspace_id', $this->workspace->id)->where('name', 'Brandnewcorp')->count())->toBe(1);
 });
 
 it('creates distinct companies for a mail subdomain and the apex domain', function (): void {
     $action = app(AutoCreateCompanyAction::class);
 
-    $first = $action->execute('cap.so', $this->team->id, $this->team);
-    $second = $action->execute('send.cap.so', $this->team->id, $this->team);
+    $first = $action->execute('cap.so', $this->workspace->id, $this->workspace);
+    $second = $action->execute('send.cap.so', $this->workspace->id, $this->workspace);
 
     expect($second->getKey())->not->toBe($first->getKey());
-    expect(Company::where('team_id', $this->team->id)->where('name', 'Cap')->count())->toBe(2);
+    expect(Company::where('workspace_id', $this->workspace->id)->where('name', 'Cap')->count())->toBe(2);
 });
 
 it('creates distinct companies when a subdomain is stored before the apex', function (): void {
     $action = app(AutoCreateCompanyAction::class);
 
-    $subdomain = $action->execute('send.cap.so', $this->team->id, $this->team);
-    $apex = $action->execute('cap.so', $this->team->id, $this->team);
+    $subdomain = $action->execute('send.cap.so', $this->workspace->id, $this->workspace);
+    $apex = $action->execute('cap.so', $this->workspace->id, $this->workspace);
 
     expect($apex->getKey())->not->toBe($subdomain->getKey());
-    expect(Company::where('team_id', $this->team->id)->where('name', 'Cap')->count())->toBe(2);
+    expect(Company::where('workspace_id', $this->workspace->id)->where('name', 'Cap')->count())->toBe(2);
 });
 
 it('does not attach a parent company to a subdomain sender when creation is off', function (): void {
     $domainsField = CustomField::query()
-        ->where('tenant_id', $this->team->id)
+        ->where('tenant_id', $this->workspace->id)
         ->where('entity_type', 'company')
         ->where('code', 'domains')
         ->first();
 
     expect($domainsField)->not->toBeNull();
 
-    $this->team->update([
+    $this->workspace->update([
         'contact_creation_mode' => ContactCreationMode::All,
         'auto_create_companies' => false,
     ]);
 
     $company = Company::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Cap',
         'creator_id' => $this->user->id,
     ]);
-    $company->saveCustomFieldValue($domainsField, 'www.cap.so', $this->team);
+    $company->saveCustomFieldValue($domainsField, 'www.cap.so', $this->workspace);
 
     $email = makeLinkEmail();
 
@@ -715,7 +715,7 @@ it('does not attach a parent company to a subdomain sender when creation is off'
 
 it('reuses an existing company that already owns the domain instead of creating one', function (): void {
     $domainsField = CustomField::query()
-        ->where('tenant_id', $this->team->id)
+        ->where('tenant_id', $this->workspace->id)
         ->where('entity_type', 'company')
         ->where('code', 'domains')
         ->first();
@@ -725,20 +725,20 @@ it('reuses an existing company that already owns the domain instead of creating 
     }
 
     $existing = Company::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Acme Corp',
     ]);
-    $existing->saveCustomFieldValue($domainsField, 'https://acme.com', $this->team);
+    $existing->saveCustomFieldValue($domainsField, 'https://acme.com', $this->workspace);
 
-    $resolved = app(AutoCreateCompanyAction::class)->execute('acme.com', $this->team->id, $this->team);
+    $resolved = app(AutoCreateCompanyAction::class)->execute('acme.com', $this->workspace->id, $this->workspace);
 
     expect($resolved->getKey())->toBe($existing->getKey());
-    expect(Company::where('team_id', $this->team->id)->where('name', 'Acme')->exists())->toBeFalse();
+    expect(Company::where('workspace_id', $this->workspace->id)->where('name', 'Acme')->exists())->toBeFalse();
 });
 
 it('creates distinct companies for same-named domains with different TLDs and preserves the first domain', function (): void {
     $domainsField = CustomField::query()
-        ->where('tenant_id', $this->team->id)
+        ->where('tenant_id', $this->workspace->id)
         ->where('entity_type', 'company')
         ->where('code', 'domains')
         ->first();
@@ -749,12 +749,12 @@ it('creates distinct companies for same-named domains with different TLDs and pr
 
     $action = app(AutoCreateCompanyAction::class);
 
-    $first = $action->execute('acme.com', $this->team->id, $this->team);
-    $second = $action->execute('acme.org', $this->team->id, $this->team);
+    $first = $action->execute('acme.com', $this->workspace->id, $this->workspace);
+    $second = $action->execute('acme.org', $this->workspace->id, $this->workspace);
 
     // Two distinct companies — same first label, different TLD must not dedup.
     expect($second->getKey())->not->toBe($first->getKey());
-    expect(Company::where('team_id', $this->team->id)
+    expect(Company::where('workspace_id', $this->workspace->id)
         ->where('creation_source', CreationSource::SYSTEM)
         ->count())->toBe(2);
 
@@ -766,9 +766,9 @@ it('creates distinct companies for same-named domains with different TLDs and pr
 });
 
 it('does not auto-create a person when contact_creation_mode is None', function (): void {
-    $this->team->update(['contact_creation_mode' => ContactCreationMode::None]);
+    $this->workspace->update(['contact_creation_mode' => ContactCreationMode::None]);
 
-    $countBefore = People::where('team_id', $this->team->id)->count();
+    $countBefore = People::where('workspace_id', $this->workspace->id)->count();
 
     $email = makeLinkEmail();
 
@@ -779,11 +779,11 @@ it('does not auto-create a person when contact_creation_mode is None', function 
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(People::where('team_id', $this->team->id)->count())->toBe($countBefore);
+    expect(People::where('workspace_id', $this->workspace->id)->count())->toBe($countBefore);
 });
 
 it('auto-creates a person when contact_creation_mode is All', function (): void {
-    $this->team->update(['contact_creation_mode' => ContactCreationMode::All]);
+    $this->workspace->update(['contact_creation_mode' => ContactCreationMode::All]);
 
     $email = makeLinkEmail();
 
@@ -795,17 +795,17 @@ it('auto-creates a person when contact_creation_mode is All', function (): void 
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(People::where('team_id', $this->team->id)->where('name', 'New Contact')->exists())->toBeTrue();
+    expect(People::where('workspace_id', $this->workspace->id)->where('name', 'New Contact')->exists())->toBeTrue();
 });
 
 it('does not auto-create a person for a workspace-blocked address', function (): void {
-    $this->team->update([
+    $this->workspace->update([
         'contact_creation_mode' => ContactCreationMode::All,
         'auto_create_companies' => true,
     ]);
 
     TeamEmailBlocklist::factory()->blocked()->email('blocked@partner.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
     ]);
 
@@ -817,19 +817,19 @@ it('does not auto-create a person for a workspace-blocked address', function ():
         'name' => 'Blocked Contact',
     ]);
 
-    $companyCountBefore = Company::where('team_id', $this->team->id)->count();
+    $companyCountBefore = Company::where('workspace_id', $this->workspace->id)->count();
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(People::where('team_id', $this->team->id)->where('name', 'Blocked Contact')->exists())->toBeFalse();
-    expect(Company::where('team_id', $this->team->id)->count())->toBe($companyCountBefore);
+    expect(People::where('workspace_id', $this->workspace->id)->where('name', 'Blocked Contact')->exists())->toBeFalse();
+    expect(Company::where('workspace_id', $this->workspace->id)->count())->toBe($companyCountBefore);
 });
 
 it('still auto-creates a person for a protected address', function (): void {
-    $this->team->update(['contact_creation_mode' => ContactCreationMode::All]);
+    $this->workspace->update(['contact_creation_mode' => ContactCreationMode::All]);
 
     TeamEmailBlocklist::factory()->protected()->email('vip@partner.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
     ]);
 
@@ -843,18 +843,18 @@ it('still auto-creates a person for a protected address', function (): void {
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(People::where('team_id', $this->team->id)->where('name', 'Protected Contact')->exists())->toBeTrue();
+    expect(People::where('workspace_id', $this->workspace->id)->where('name', 'Protected Contact')->exists())->toBeTrue();
 });
 
 it('does not auto-create a person for a mailbox-blocklisted address', function (): void {
-    $this->team->update([
+    $this->workspace->update([
         'contact_creation_mode' => ContactCreationMode::All,
         'auto_create_companies' => true,
     ]);
 
     EmailBlocklist::factory()->email('spam@badactor.com')->create([
         'user_id' => $this->user->id,
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->getKey(),
     ]);
 
@@ -866,19 +866,19 @@ it('does not auto-create a person for a mailbox-blocklisted address', function (
         'name' => 'Spam Sender',
     ]);
 
-    $companyCountBefore = Company::where('team_id', $this->team->id)->count();
+    $companyCountBefore = Company::where('workspace_id', $this->workspace->id)->count();
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(People::where('team_id', $this->team->id)->where('name', 'Spam Sender')->exists())->toBeFalse();
-    expect(Company::where('team_id', $this->team->id)->count())->toBe($companyCountBefore);
+    expect(People::where('workspace_id', $this->workspace->id)->where('name', 'Spam Sender')->exists())->toBeFalse();
+    expect(Company::where('workspace_id', $this->workspace->id)->count())->toBe($companyCountBefore);
 });
 
 it('auto-creates other participants when one address is blocked', function (): void {
-    $this->team->update(['contact_creation_mode' => ContactCreationMode::All]);
+    $this->workspace->update(['contact_creation_mode' => ContactCreationMode::All]);
 
     TeamEmailBlocklist::factory()->blocked()->email('blocked@partner.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
     ]);
 
@@ -897,15 +897,15 @@ it('auto-creates other participants when one address is blocked', function (): v
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(People::where('team_id', $this->team->id)->where('name', 'Blocked Contact')->exists())->toBeFalse()
-        ->and(People::where('team_id', $this->team->id)->where('name', 'Real Customer')->exists())->toBeTrue();
+    expect(People::where('workspace_id', $this->workspace->id)->where('name', 'Blocked Contact')->exists())->toBeFalse()
+        ->and(People::where('workspace_id', $this->workspace->id)->where('name', 'Real Customer')->exists())->toBeTrue();
 });
 
 it('does not auto-create a company for a workspace-blocked domain', function (): void {
-    $this->team->update(['auto_create_companies' => true]);
+    $this->workspace->update(['auto_create_companies' => true]);
 
     TeamEmailBlocklist::factory()->blocked()->domain('blockedcorp.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->user->id,
     ]);
 
@@ -918,11 +918,11 @@ it('does not auto-create a company for a workspace-blocked domain', function ():
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(Company::where('team_id', $this->team->id)->where('name', 'Blockedcorp')->exists())->toBeFalse();
+    expect(Company::where('workspace_id', $this->workspace->id)->where('name', 'Blockedcorp')->exists())->toBeFalse();
 });
 
 it('creates distinct people for participants sharing a display name but different emails', function (): void {
-    $this->team->update(['contact_creation_mode' => ContactCreationMode::All]);
+    $this->workspace->update(['contact_creation_mode' => ContactCreationMode::All]);
 
     $email = makeLinkEmail();
 
@@ -939,11 +939,11 @@ it('creates distinct people for participants sharing a display name but differen
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(People::where('team_id', $this->team->id)->where('name', 'John Smith')->count())->toBe(2);
+    expect(People::where('workspace_id', $this->workspace->id)->where('name', 'John Smith')->count())->toBe(2);
 });
 
 it('does not duplicate a person when the same address appears on multiple participants', function (): void {
-    $this->team->update(['contact_creation_mode' => ContactCreationMode::All]);
+    $this->workspace->update(['contact_creation_mode' => ContactCreationMode::All]);
 
     $email = makeLinkEmail();
 
@@ -960,11 +960,11 @@ it('does not duplicate a person when the same address appears on multiple partic
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(People::where('team_id', $this->team->id)->where('name', 'Dup Person')->count())->toBe(1);
+    expect(People::where('workspace_id', $this->workspace->id)->where('name', 'Dup Person')->count())->toBe(1);
 });
 
 it('does not auto-create a person when Selective and the address has only inbound mail', function (): void {
-    $this->team->update(['contact_creation_mode' => ContactCreationMode::Selective]);
+    $this->workspace->update(['contact_creation_mode' => ContactCreationMode::Selective]);
 
     $inboundEmail = makeLinkEmail(['direction' => EmailDirection::INBOUND]);
 
@@ -973,7 +973,7 @@ it('does not auto-create a person when Selective and the address has only inboun
         'email_address' => 'inbound-only@partner.com',
     ]);
 
-    $countBefore = People::where('team_id', $this->team->id)->count();
+    $countBefore = People::where('workspace_id', $this->workspace->id)->count();
 
     $newEmail = makeLinkEmail(['direction' => EmailDirection::INBOUND]);
 
@@ -984,20 +984,20 @@ it('does not auto-create a person when Selective and the address has only inboun
 
     app(LinkEmailAction::class)->execute($newEmail);
 
-    expect(People::where('team_id', $this->team->id)->count())->toBe($countBefore);
+    expect(People::where('workspace_id', $this->workspace->id)->count())->toBe($countBefore);
 });
 
 it('does not auto-create people or companies for internal email', function (): void {
-    $this->team->update([
+    $this->workspace->update([
         'contact_creation_mode' => ContactCreationMode::All,
         'auto_create_companies' => true,
     ]);
 
     $teammate = User::factory()->create();
-    $this->team->users()->attach($teammate, ['role' => 'editor']);
+    $this->workspace->users()->attach($teammate, ['role' => 'editor']);
 
-    $peopleBefore = People::where('team_id', $this->team->id)->count();
-    $companiesBefore = Company::where('team_id', $this->team->id)->count();
+    $peopleBefore = People::where('workspace_id', $this->workspace->id)->count();
+    $companiesBefore = Company::where('workspace_id', $this->workspace->id)->count();
 
     $email = makeLinkEmail(['is_internal' => true]);
 
@@ -1013,17 +1013,17 @@ it('does not auto-create people or companies for internal email', function (): v
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(People::where('team_id', $this->team->id)->count())->toBe($peopleBefore)
-        ->and(Company::where('team_id', $this->team->id)->count())->toBe($companiesBefore);
+    expect(People::where('workspace_id', $this->workspace->id)->count())->toBe($peopleBefore)
+        ->and(Company::where('workspace_id', $this->workspace->id)->count())->toBe($companiesBefore);
 });
 
 it('does not auto-create a person when Selective outbound only reaches a teammate', function (): void {
-    $this->team->update(['contact_creation_mode' => ContactCreationMode::Selective]);
+    $this->workspace->update(['contact_creation_mode' => ContactCreationMode::Selective]);
 
     $teammate = User::factory()->create();
-    $this->team->users()->attach($teammate, ['role' => 'editor']);
+    $this->workspace->users()->attach($teammate, ['role' => 'editor']);
 
-    $countBefore = People::where('team_id', $this->team->id)->count();
+    $countBefore = People::where('workspace_id', $this->workspace->id)->count();
 
     $email = makeLinkEmail(['direction' => EmailDirection::OUTBOUND]);
 
@@ -1035,11 +1035,11 @@ it('does not auto-create a person when Selective outbound only reaches a teammat
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(People::where('team_id', $this->team->id)->count())->toBe($countBefore);
+    expect(People::where('workspace_id', $this->workspace->id)->count())->toBe($countBefore);
 });
 
 it('auto-creates a person and company on the first outbound email in Selective mode', function (): void {
-    $this->team->update([
+    $this->workspace->update([
         'contact_creation_mode' => ContactCreationMode::Selective,
         'auto_create_companies' => true,
     ]);
@@ -1054,25 +1054,25 @@ it('auto-creates a person and company on the first outbound email in Selective m
 
     app(LinkEmailAction::class)->execute($email);
 
-    expect(People::where('team_id', $this->team->id)->where('name', 'Jane Prospect')->exists())->toBeTrue()
-        ->and(Company::where('team_id', $this->team->id)->where('name', 'Acme')->exists())->toBeTrue();
+    expect(People::where('workspace_id', $this->workspace->id)->where('name', 'Jane Prospect')->exists())->toBeTrue()
+        ->and(Company::where('workspace_id', $this->workspace->id)->where('name', 'Acme')->exists())->toBeTrue();
 });
 
 it('creates a person in Selective mode when a teammate already sent to the address', function (): void {
-    $this->team->update(['contact_creation_mode' => ContactCreationMode::Selective]);
+    $this->workspace->update(['contact_creation_mode' => ContactCreationMode::Selective]);
 
-    $teammate = User::factory()->create(['current_team_id' => $this->team->id]);
-    $this->team->users()->attach($teammate, ['role' => 'editor']);
+    $teammate = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->users()->attach($teammate, ['role' => 'editor']);
 
     $teammateAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $teammate->id,
     ]));
 
     $address = 'shared@partner.com';
 
     $teammateOutbound = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $teammate->id,
         'connected_account_id' => $teammateAccount->getKey(),
         'direction' => EmailDirection::OUTBOUND,
@@ -1091,21 +1091,21 @@ it('creates a person in Selective mode when a teammate already sent to the addre
 
     app(LinkEmailAction::class)->execute($inbound);
 
-    expect(People::where('team_id', $this->team->id)->where('name', 'Shared Contact')->exists())->toBeTrue();
+    expect(People::where('workspace_id', $this->workspace->id)->where('name', 'Shared Contact')->exists())->toBeTrue();
 });
 
 it('creates a person in Selective mode when outbound history is on a disconnected account', function (): void {
-    $this->team->update(['contact_creation_mode' => ContactCreationMode::Selective]);
+    $this->workspace->update(['contact_creation_mode' => ContactCreationMode::Selective]);
 
     $disconnectedAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
     $address = 'history@partner.com';
 
     $outbound = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $disconnectedAccount->getKey(),
         'direction' => EmailDirection::OUTBOUND,
@@ -1126,13 +1126,13 @@ it('creates a person in Selective mode when outbound history is on a disconnecte
 
     app(LinkEmailAction::class)->execute($inbound);
 
-    expect(People::where('team_id', $this->team->id)->where('name', 'History Contact')->exists())->toBeTrue();
+    expect(People::where('workspace_id', $this->workspace->id)->where('name', 'History Contact')->exists())->toBeTrue();
 });
 
 it('increments person email_count when linked', function (): void {
     $emailField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', $this->team->getKey())
+        ->where('tenant_id', $this->workspace->getKey())
         ->where('entity_type', 'people')
         ->where('code', 'emails')
         ->first();
@@ -1142,13 +1142,13 @@ it('increments person email_count when linked', function (): void {
     }
 
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Metric Person',
         'creator_id' => $this->user->id,
         'email_count' => 0,
     ]);
 
-    $person->saveCustomFieldValue($emailField, ['metric@company.com'], $this->team);
+    $person->saveCustomFieldValue($emailField, ['metric@company.com'], $this->workspace);
 
     $email = makeLinkEmail(['direction' => EmailDirection::INBOUND]);
 
@@ -1167,7 +1167,7 @@ it('increments person email_count when linked', function (): void {
 it('does not increment person email_count when the same email is linked again', function (): void {
     $emailField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', $this->team->getKey())
+        ->where('tenant_id', $this->workspace->getKey())
         ->where('entity_type', 'people')
         ->where('code', 'emails')
         ->first();
@@ -1177,13 +1177,13 @@ it('does not increment person email_count when the same email is linked again', 
     }
 
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Metric Person',
         'creator_id' => $this->user->id,
         'email_count' => 0,
     ]);
 
-    $person->saveCustomFieldValue($emailField, ['metric@company.com'], $this->team);
+    $person->saveCustomFieldValue($emailField, ['metric@company.com'], $this->workspace);
 
     $email = makeLinkEmail(['direction' => EmailDirection::INBOUND]);
 
@@ -1203,7 +1203,7 @@ it('does not increment person email_count when the same email is linked again', 
 it('does not increment person email_count when the same email is reapplied', function (): void {
     $emailField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', $this->team->getKey())
+        ->where('tenant_id', $this->workspace->getKey())
         ->where('entity_type', 'people')
         ->where('code', 'emails')
         ->first();
@@ -1213,13 +1213,13 @@ it('does not increment person email_count when the same email is reapplied', fun
     }
 
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Reapply Metric Person',
         'creator_id' => $this->user->id,
         'email_count' => 0,
     ]);
 
-    $person->saveCustomFieldValue($emailField, ['reapply-metric@company.com'], $this->team);
+    $person->saveCustomFieldValue($emailField, ['reapply-metric@company.com'], $this->workspace);
 
     $email = makeLinkEmail(['direction' => EmailDirection::INBOUND]);
 
@@ -1239,7 +1239,7 @@ it('does not increment person email_count when the same email is reapplied', fun
 it('also links email to opportunity via person relationship', function (): void {
     $emailField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', $this->team->getKey())
+        ->where('tenant_id', $this->workspace->getKey())
         ->where('entity_type', 'people')
         ->where('code', 'emails')
         ->first();
@@ -1249,15 +1249,15 @@ it('also links email to opportunity via person relationship', function (): void 
     }
 
     $person = People::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Opportunity Contact',
         'creator_id' => $this->user->id,
     ]);
 
-    $person->saveCustomFieldValue($emailField, ['opp@partner.com'], $this->team);
+    $person->saveCustomFieldValue($emailField, ['opp@partner.com'], $this->workspace);
 
     $opportunity = Opportunity::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'name' => 'Big Deal',
         'contact_id' => $person->getKey(),
         'creator_id' => $this->user->id,
@@ -1279,7 +1279,7 @@ function makeAcmeCompanyWithDomain(): ?Company
 {
     $domainsField = CustomField::query()
         ->withoutGlobalScopes()
-        ->where('tenant_id', test()->team->getKey())
+        ->where('tenant_id', test()->workspace->getKey())
         ->where('entity_type', 'company')
         ->where('code', 'domains')
         ->first();
@@ -1289,12 +1289,12 @@ function makeAcmeCompanyWithDomain(): ?Company
     }
 
     $company = Company::create([
-        'team_id' => test()->team->id,
+        'workspace_id' => test()->workspace->id,
         'name' => 'Acme',
         'creator_id' => test()->user->id,
     ]);
 
-    $company->saveCustomFieldValue($domainsField, 'https://acme.com', test()->team);
+    $company->saveCustomFieldValue($domainsField, 'https://acme.com', test()->workspace);
 
     return $company;
 }

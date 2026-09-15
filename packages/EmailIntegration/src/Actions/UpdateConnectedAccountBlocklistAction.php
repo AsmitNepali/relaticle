@@ -27,7 +27,7 @@ final readonly class UpdateConnectedAccountBlocklistAction
 
             EmailBlocklist::query()->create([
                 'user_id' => $account->user_id,
-                'team_id' => $account->team_id,
+                'workspace_id' => $account->workspace_id,
                 'connected_account_id' => $account->getKey(),
                 'type' => $entry['type'],
                 'value' => $value,

@@ -73,7 +73,7 @@ final class SignatureBlock extends RichContentCustomBlock
         return EmailSignature::query()
             ->whereKey($signatureId)
             ->where('user_id', $userId)
-            ->where('team_id', $teamId)
+            ->where('workspace_id', $teamId)
             ->value('content_html');
     }
 }

@@ -4,21 +4,21 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Actions;
 
-use App\Enums\TeamRole;
-use App\Models\Team;
+use App\Enums\WorkspaceRole;
 use App\Models\User;
+use App\Models\Workspace;
 use Relaticle\EmailIntegration\Enums\ContactCreationMode;
 
 final readonly class UpdateTeamContactCreationSettingsAction
 {
     public function execute(
-        Team $team,
+        Workspace $team,
         User $actor,
         ContactCreationMode $contactCreationMode,
         bool $autoCreateCompanies,
     ): void {
         abort_unless(
-            $actor->ownsTeam($team) || $actor->hasTeamRole($team, TeamRole::Admin->value),
+            $actor->ownsWorkspace($team) || $actor->hasWorkspaceRole($team, WorkspaceRole::Admin->value),
             403,
         );
 

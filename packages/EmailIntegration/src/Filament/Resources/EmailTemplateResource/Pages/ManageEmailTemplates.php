@@ -45,7 +45,7 @@ final class ManageEmailTemplates extends ManageRecords
             ->icon('heroicon-o-plus')
             ->size(Size::Small)
             ->mutateFormDataUsing(function (array $data): array {
-                $data['team_id'] = filament()->getTenant()?->getKey();
+                $data['workspace_id'] = filament()->getTenant()?->getKey();
                 $data['created_by'] = auth()->id();
 
                 return $data;

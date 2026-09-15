@@ -28,13 +28,13 @@ beforeEach(function (): void {
 
 function makeAzureCalendarAccount(): ConnectedAccount
 {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
 
     return ConnectedAccount::factory()
         ->azure()
         ->for($user)
         ->create([
-            'team_id' => $user->currentTeam->getKey(),
+            'workspace_id' => $user->currentWorkspace->getKey(),
             'access_token' => 'access',
             'refresh_token' => 'refresh',
             'token_expires_at' => now()->addHour(),
@@ -91,6 +91,35 @@ it('parses Graph calendarView/delta into CalendarEventData', function (): void {
         ->and($result->events[0]->attendees[0]['email'])->toBe('a@example.com')
         ->and($result->events[0]->attendees[0]['is_organizer'])->toBeFalse()
         ->and($result->nextSyncToken)->toContain('$deltatoken=NEW');
+});
+
+it('treats a Graph all-day end as exclusive and stores the inclusive last day', function (): void {
+    Http::fake([
+        'https://graph.microsoft.com/v1.0/me/calendarView/delta*' => Http::response([
+            'value' => [
+                [
+                    'id' => 'evt-all-day',
+                    'subject' => 'Company holiday',
+                    'start' => ['dateTime' => '2026-09-14T00:00:00', 'timeZone' => 'UTC'],
+                    'end' => ['dateTime' => '2026-09-15T00:00:00', 'timeZone' => 'UTC'],
+                    'isAllDay' => true,
+                    'isCancelled' => false,
+                    'organizer' => ['emailAddress' => ['address' => 'org@example.com', 'name' => 'Org']],
+                    'attendees' => [],
+                ],
+            ],
+            '@odata.deltaLink' => 'https://graph.microsoft.com/v1.0/me/calendarView/delta?$deltatoken=NEW',
+        ]),
+    ]);
+
+    $result = new MicrosoftCalendarService(makeAzureCalendarAccount(), resolve(MicrosoftGraphClientFactory::class))
+        ->fetchDelta(microsoftCalendarSyncCursor('https://graph.microsoft.com/v1.0/me/calendarView/delta?$deltatoken=OLD'));
+
+    expect($result->events)->toHaveCount(1)
+        ->and($result->events[0]->isAllDay)->toBeTrue()
+        ->and($result->events[0]->startsAt->toDateString())->toBe('2026-09-14')
+        ->and($result->events[0]->endsAt->toDateString())->toBe('2026-09-14')
+        ->and($result->events[0]->startsAt->diffInDays($result->events[0]->endsAt))->toBe(0.0);
 });
 
 it('maps Graph attendee response codes to the canonical vocabulary', function (): void {

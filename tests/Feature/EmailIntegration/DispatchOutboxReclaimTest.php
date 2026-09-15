@@ -13,18 +13,18 @@ use Relaticle\EmailIntegration\Models\Email;
 beforeEach(function (): void {
     Bus::fake();
 
-    $this->user = User::factory()->withTeam()->create();
-    $this->team = $this->user->currentTeam;
+    $this->user = User::factory()->withWorkspace()->create();
+    $this->workspace = $this->user->currentWorkspace;
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'status' => 'active',
     ]));
 
     $this->makeOutbound = function (EmailStatus $status, ?string $providerMessageId, int $sendingMinutesAgo): Email {
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->user->id,
             'connected_account_id' => $this->account->getKey(),
             'direction' => EmailDirection::OUTBOUND,

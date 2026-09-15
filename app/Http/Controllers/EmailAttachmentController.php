@@ -54,7 +54,7 @@ final readonly class EmailAttachmentController
         /** @var User $user */
         $user = $request->user();
 
-        abort_unless($user->belongsToTeamId($email->team_id), 403);
+        abort_unless($user->belongsToWorkspaceId($email->workspace_id), 403);
         abort_unless($user->can('viewBody', $email), 403);
 
         return $attachment;

@@ -46,13 +46,13 @@ function runIncrementalSync(ConnectedAccount $account, array $deltaOverrides): v
 
 function syncableAccount(): ConnectedAccount
 {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
 
     return ConnectedAccount::factory()
         ->azure()
         ->for($user)
         ->create([
-            'team_id' => $user->currentTeam->getKey(),
+            'workspace_id' => $user->currentWorkspace->getKey(),
             'access_token' => 'a',
             'refresh_token' => 'r',
             'token_expires_at' => now()->addHour(),
@@ -65,12 +65,12 @@ function syncableAccount(): ConnectedAccount
 it('batches StoreEmailJob for new Microsoft messages and defers the cursor to the batch callback', function (): void {
     Bus::fake();
 
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $account = ConnectedAccount::factory()
         ->azure()
         ->for($user)
         ->create([
-            'team_id' => $user->currentTeam->getKey(),
+            'workspace_id' => $user->currentWorkspace->getKey(),
             'access_token' => 'a',
             'refresh_token' => 'r',
             'token_expires_at' => now()->addHour(),
@@ -206,7 +206,7 @@ it('records the owner read state when the provider marks a message read', functi
     $account = syncableAccount();
 
     $email = Email::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'user_id' => $account->user_id,
         'connected_account_id' => $account->getKey(),
         'provider_message_id' => 'MSG-READ',
@@ -226,7 +226,7 @@ it('removes the owner read state when the provider marks a message unread', func
     $account = syncableAccount();
 
     $email = Email::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'user_id' => $account->user_id,
         'connected_account_id' => $account->getKey(),
         'provider_message_id' => 'MSG-UNREAD',

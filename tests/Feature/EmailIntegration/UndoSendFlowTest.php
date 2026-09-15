@@ -18,10 +18,10 @@ use Relaticle\EmailIntegration\Models\EmailBatch;
 mutates(CancelQueuedEmailAction::class, SyncEmailBatchCountersAction::class);
 
 it('cancels a single send within the 5s undo window', function (): void {
-    $user = User::factory()->withPersonalTeam()->create();
+    $user = User::factory()->withPersonalWorkspace()->create();
     $this->actingAs($user);
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->for($user)->create([
-        'team_id' => $user->currentTeam->getKey(),
+        'workspace_id' => $user->currentWorkspace->getKey(),
     ]));
 
     $this->travelTo(now()->startOfSecond());
@@ -92,14 +92,14 @@ it('finishes the batch when a queued recipient is cancelled', function (
     int $sentCount,
     int $failedCount,
 ): void {
-    $user = User::factory()->withPersonalTeam()->create();
+    $user = User::factory()->withPersonalWorkspace()->create();
     $this->actingAs($user);
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->for($user)->create([
-        'team_id' => $user->currentTeam->getKey(),
+        'workspace_id' => $user->currentWorkspace->getKey(),
     ]));
 
     $batch = EmailBatch::factory()->create([
-        'team_id' => $user->currentTeam->getKey(),
+        'workspace_id' => $user->currentWorkspace->getKey(),
         'user_id' => $user->id,
         'connected_account_id' => $account->id,
         'total_recipients' => 2,
@@ -107,7 +107,7 @@ it('finishes the batch when a queued recipient is cancelled', function (
     ]);
 
     Email::factory()->outbound()->create([
-        'team_id' => $user->currentTeam->getKey(),
+        'workspace_id' => $user->currentWorkspace->getKey(),
         'user_id' => $user->id,
         'connected_account_id' => $account->id,
         'batch_id' => $batch->getKey(),
@@ -117,7 +117,7 @@ it('finishes the batch when a queued recipient is cancelled', function (
     ]);
 
     $queued = Email::factory()->outbound()->create([
-        'team_id' => $user->currentTeam->getKey(),
+        'workspace_id' => $user->currentWorkspace->getKey(),
         'user_id' => $user->id,
         'connected_account_id' => $account->id,
         'batch_id' => $batch->getKey(),
@@ -142,14 +142,14 @@ it('finishes the batch when a queued recipient is cancelled', function (
 ]);
 
 it('does not finish the batch while another recipient is still queued', function (): void {
-    $user = User::factory()->withPersonalTeam()->create();
+    $user = User::factory()->withPersonalWorkspace()->create();
     $this->actingAs($user);
     $account = ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->for($user)->create([
-        'team_id' => $user->currentTeam->getKey(),
+        'workspace_id' => $user->currentWorkspace->getKey(),
     ]));
 
     $batch = EmailBatch::factory()->create([
-        'team_id' => $user->currentTeam->getKey(),
+        'workspace_id' => $user->currentWorkspace->getKey(),
         'user_id' => $user->id,
         'connected_account_id' => $account->id,
         'total_recipients' => 2,
@@ -157,7 +157,7 @@ it('does not finish the batch while another recipient is still queued', function
     ]);
 
     $stillQueued = Email::factory()->outbound()->create([
-        'team_id' => $user->currentTeam->getKey(),
+        'workspace_id' => $user->currentWorkspace->getKey(),
         'user_id' => $user->id,
         'connected_account_id' => $account->id,
         'batch_id' => $batch->getKey(),
@@ -168,7 +168,7 @@ it('does not finish the batch while another recipient is still queued', function
     ]);
 
     $cancelled = Email::factory()->outbound()->create([
-        'team_id' => $user->currentTeam->getKey(),
+        'workspace_id' => $user->currentWorkspace->getKey(),
         'user_id' => $user->id,
         'connected_account_id' => $account->id,
         'batch_id' => $batch->getKey(),

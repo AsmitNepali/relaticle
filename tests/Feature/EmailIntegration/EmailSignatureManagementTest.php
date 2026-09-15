@@ -12,13 +12,13 @@ use Relaticle\EmailIntegration\Models\EmailSignature;
 mutates(CreateSignatureAction::class, UpdateSignatureAction::class);
 
 beforeEach(function (): void {
-    $this->user = User::factory()->withTeam()->create();
+    $this->user = User::factory()->withWorkspace()->create();
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
-    Filament::setTenant($this->team);
+    $this->workspace = $this->user->currentWorkspace;
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'email_address' => 'sender@example.com',
         'display_name' => 'Test Sender',
@@ -42,7 +42,7 @@ it('creates a signature record', function (): void {
 
 it('sets new signature as default and unsets the previous default', function (): void {
     $existingDefault = EmailSignature::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->getKey(),
         'user_id' => $this->user->id,
         'name' => 'Old Default',
@@ -79,7 +79,7 @@ it('allows multiple non-default signatures', function (): void {
 
 it('updates signature name', function (): void {
     $signature = EmailSignature::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->getKey(),
         'user_id' => $this->user->id,
         'name' => 'Original Name',
@@ -94,7 +94,7 @@ it('updates signature name', function (): void {
 
 it('setting is_default clears other defaults for the same account', function (): void {
     $sigA = EmailSignature::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->getKey(),
         'user_id' => $this->user->id,
         'name' => 'Sig A',
@@ -103,7 +103,7 @@ it('setting is_default clears other defaults for the same account', function ():
     ]);
 
     $sigB = EmailSignature::create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->getKey(),
         'user_id' => $this->user->id,
         'name' => 'Sig B',

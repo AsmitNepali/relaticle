@@ -215,7 +215,7 @@ final readonly class EmailInlineImageEmbedder
             return null;
         }
 
-        $teamId = $user->current_team_id;
+        $teamId = $user->current_workspace_id;
 
         if (blank($teamId)) {
             return null;

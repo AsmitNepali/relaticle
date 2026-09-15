@@ -33,7 +33,7 @@ final readonly class UpdateEmailSharingAction
 
             foreach (Arr::wrap($share['shared_with']) as $sharedWith) {
                 $sharedWithUser = User::query()
-                    ->inTeam($sharer->current_team_id)
+                    ->inWorkspace($sharer->current_workspace_id)
                     ->whereKey($sharedWith)
                     ->first();
 

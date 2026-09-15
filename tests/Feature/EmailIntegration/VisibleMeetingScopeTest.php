@@ -16,23 +16,23 @@ use Relaticle\EmailIntegration\Models\TeamEmailBlocklist;
 mutates(VisibleMeetingScope::class);
 
 beforeEach(function (): void {
-    $this->viewer = User::factory()->withTeam()->create();
-    $this->team = $this->viewer->currentTeam;
+    $this->viewer = User::factory()->withWorkspace()->create();
+    $this->workspace = $this->viewer->currentWorkspace;
     $this->actingAs($this->viewer);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 
     $this->coworker = User::factory()->create();
-    $this->coworker->teams()->attach($this->team);
-    $this->coworker->forceFill(['current_team_id' => $this->team->id])->save();
+    $this->coworker->workspaces()->attach($this->workspace);
+    $this->coworker->forceFill(['current_workspace_id' => $this->workspace->id])->save();
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->coworker->id,
     ]));
 
     $this->makeCoworkerMeeting = function (array $attendees): Meeting {
         $meeting = Meeting::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'connected_account_id' => $this->account->getKey(),
         ]);
 
@@ -66,7 +66,7 @@ it('shows a coworker meeting to a workspace member listed on the guest list even
 
 it('shows a coworker meeting when only the connected mailbox identity is on the guest list', function (): void {
     ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->coworker->id,
         'email_address' => 'mail2asmitnepali99@gmail.com',
     ]));
@@ -78,7 +78,7 @@ it('shows a coworker meeting when only the connected mailbox identity is on the 
 
 it('hides a coworker meeting when all attendees are protected', function (): void {
     TeamEmailBlocklist::factory()->protected()->email('vip@contact.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->viewer->id,
     ]);
 
@@ -108,13 +108,13 @@ it('shows a coworker meeting on workspace scope but hides it on a personal calen
 
 it('shows a personal-calendar meeting from any of the viewers connected mailboxes', function (): void {
     $secondaryAccount = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->viewer->id,
         'email_address' => 'secondary@example.test',
     ]));
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $secondaryAccount->getKey(),
     ]);
 
@@ -132,7 +132,7 @@ it('shows a coworker meeting on a personal calendar when the viewer is on the gu
 
 it('shows a coworker meeting on a personal calendar when only a connected mailbox is on the guest list', function (): void {
     ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->viewer->id,
         'email_address' => 'viewer-mailbox@example.test',
     ]));
@@ -145,7 +145,7 @@ it('shows a coworker meeting on a personal calendar when only a connected mailbo
 
 it('shows a coworker meeting when only some attendees are protected', function (): void {
     TeamEmailBlocklist::factory()->protected()->email('vip@contact.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->viewer->id,
     ]);
 
@@ -156,7 +156,7 @@ it('shows a coworker meeting when only some attendees are protected', function (
 
 it('hides a coworker meeting when any attendee is blocked', function (): void {
     TeamEmailBlocklist::factory()->blocked()->email('blocked@contact.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->viewer->id,
     ]);
 
@@ -167,7 +167,7 @@ it('hides a coworker meeting when any attendee is blocked', function (): void {
 
 it('still shows a protected meeting to its mailbox owner', function (): void {
     TeamEmailBlocklist::factory()->protected()->email('vip@contact.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->viewer->id,
     ]);
 
@@ -178,7 +178,7 @@ it('still shows a protected meeting to its mailbox owner', function (): void {
 
 it('hides a workspace-blocked meeting from its mailbox owner', function (): void {
     TeamEmailBlocklist::factory()->blocked()->email('blocked@contact.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->viewer->id,
     ]);
 
@@ -190,7 +190,7 @@ it('hides a workspace-blocked meeting from its mailbox owner', function (): void
 it('hides a mailbox-blocklisted meeting from its mailbox owner', function (): void {
     EmailBlocklist::factory()->email('spam@badactor.com')->create([
         'user_id' => $this->coworker->id,
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->getKey(),
     ]);
 
@@ -201,12 +201,12 @@ it('hides a mailbox-blocklisted meeting from its mailbox owner', function (): vo
 
 it('hides a meeting when the organizer is workspace-blocked', function (): void {
     TeamEmailBlocklist::factory()->blocked()->email('blocked-organizer@contact.com')->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'created_by' => $this->viewer->id,
     ]);
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->getKey(),
         'organizer_email' => 'blocked-organizer@contact.com',
     ]);

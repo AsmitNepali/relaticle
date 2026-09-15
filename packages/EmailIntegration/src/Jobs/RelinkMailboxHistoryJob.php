@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Jobs;
 
-use App\Models\Team;
+use App\Models\Workspace;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -41,20 +41,20 @@ final class RelinkMailboxHistoryJob implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        $team = $account->team()->first();
+        $workspace = $account->workspace()->first();
         $previousTenantId = TenantContextService::getCurrentTenantId();
-        TenantContextService::setTenantId($account->team_id);
+        TenantContextService::setTenantId($account->workspace_id);
 
         try {
             Email::query()
                 ->withoutGlobalScope(ActiveAccountScope::class)
                 ->where('connected_account_id', $account->getKey())
                 ->lazyById(100)
-                ->each(function (Email $email) use ($linkEmail, $account, $team): void {
+                ->each(function (Email $email) use ($linkEmail, $account, $workspace): void {
                     $email->setRelation('connectedAccount', $account);
 
-                    if ($team instanceof Team) {
-                        $email->setRelation('team', $team);
+                    if ($workspace instanceof Workspace) {
+                        $email->setRelation('workspace', $workspace);
                     }
 
                     $linkEmail->reapply($email);
@@ -63,11 +63,11 @@ final class RelinkMailboxHistoryJob implements ShouldBeUnique, ShouldQueue
             Meeting::query()
                 ->where('connected_account_id', $account->getKey())
                 ->lazyById(100)
-                ->each(function (Meeting $meeting) use ($linkMeeting, $account, $team): void {
+                ->each(function (Meeting $meeting) use ($linkMeeting, $account, $workspace): void {
                     $meeting->setRelation('connectedAccount', $account);
 
-                    if ($team instanceof Team) {
-                        $meeting->setRelation('team', $team);
+                    if ($workspace instanceof Workspace) {
+                        $meeting->setRelation('workspace', $workspace);
                     }
 
                     $linkMeeting->execute($meeting);

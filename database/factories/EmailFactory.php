@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
-use App\Models\Team;
 use App\Models\User;
+use App\Models\Workspace;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Relaticle\EmailIntegration\Enums\EmailDirection;
 use Relaticle\EmailIntegration\Enums\EmailFolder;
@@ -23,7 +23,7 @@ final class EmailFactory extends Factory
     public function definition(): array
     {
         return [
-            'team_id' => Team::factory(),
+            'workspace_id' => Workspace::factory(),
             'user_id' => User::factory(),
             'connected_account_id' => ConnectedAccount::factory(),
             'rfc_message_id' => '<'.fake()->uuid().'@example.com>',

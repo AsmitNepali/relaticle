@@ -13,10 +13,10 @@ mutates(UnlinkMeetingFromRecordAction::class);
 it('removes a link regardless of source', function (): void {
     $account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create());
     $meeting = Meeting::factory()->create([
-        'team_id' => $account->team_id,
+        'workspace_id' => $account->workspace_id,
         'connected_account_id' => $account->getKey(),
     ]);
-    $person = People::factory()->for($meeting->team)->create();
+    $person = People::factory()->for($meeting->workspace)->create();
     (app(LinkMeetingToRecordAction::class))->execute($meeting, $person);
 
     (app(UnlinkMeetingFromRecordAction::class))->execute($meeting, $person);

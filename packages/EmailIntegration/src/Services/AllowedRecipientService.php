@@ -66,7 +66,7 @@ final readonly class AllowedRecipientService
     {
         $addresses = [
             ...$this->recipientSuggestions->addressesFor($user),
-            ...$this->crmPrimaryEmailsForTeam((string) $user->current_team_id),
+            ...$this->crmPrimaryEmailsForTeam((string) $user->current_workspace_id),
             ...array_map($this->normalize(...), $extraAddresses),
         ];
 

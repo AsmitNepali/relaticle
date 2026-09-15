@@ -16,10 +16,10 @@ beforeEach(function (): void {
 });
 
 it('redirects to Microsoft with mail Graph scopes and prompt=consent', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
 
-    $response = $this->get(MailboxOAuthWorkspace::redirectUrl('azure', $user->currentTeam));
+    $response = $this->get(MailboxOAuthWorkspace::redirectUrl('azure', $user->currentWorkspace));
 
     $location = $response->headers->get('Location');
 
@@ -35,10 +35,10 @@ it('redirects to Microsoft with mail Graph scopes and prompt=consent', function 
 });
 
 it('includes Calendars.Read even when the leftover capability query is sent', function (): void {
-    $user = User::factory()->withTeam()->create();
+    $user = User::factory()->withWorkspace()->create();
     $this->actingAs($user);
 
-    $response = $this->get(MailboxOAuthWorkspace::redirectUrl('azure', $user->currentTeam));
+    $response = $this->get(MailboxOAuthWorkspace::redirectUrl('azure', $user->currentWorkspace));
 
     expect($response->headers->get('Location'))
         ->toContain(urlencode('https://graph.microsoft.com/Calendars.ReadWrite'))

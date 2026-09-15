@@ -22,24 +22,24 @@ use Relaticle\EmailIntegration\Services\EmailVisibilityService;
 mutates(BaseEmailsRelationManager::class, EmailVisibilityService::class);
 
 beforeEach(function (): void {
-    $this->owner = User::factory()->withTeam()->create();
-    $this->team = $this->owner->currentTeam;
+    $this->owner = User::factory()->withWorkspace()->create();
+    $this->workspace = $this->owner->currentWorkspace;
 
-    $this->viewer = User::factory()->create(['current_team_id' => $this->team->id]);
-    $this->team->users()->attach($this->viewer, ['role' => 'editor']);
+    $this->viewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->users()->attach($this->viewer, ['role' => 'editor']);
 
     $this->account = ConnectedAccount::withoutEvents(fn () => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
     ]));
 
     $this->person = People::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'creator_id' => $this->owner->id,
     ]);
 
     $this->actingAs($this->owner);
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 });
 
 describe('requestAccess table action', function (): void {
@@ -49,7 +49,7 @@ describe('requestAccess table action', function (): void {
         Notification::fake();
 
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
             'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -81,7 +81,7 @@ describe('requestAccess table action', function (): void {
         $this->actingAs($this->viewer);
 
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
             'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -110,7 +110,7 @@ describe('requestAccess table action', function (): void {
 
     it('is hidden when the authenticated user is the email owner', function (): void {
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
             'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -129,7 +129,7 @@ describe('requestAccess table action', function (): void {
         $this->actingAs($this->viewer);
 
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
             'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -154,7 +154,7 @@ describe('requestAccess table action', function (): void {
 describe('manageSharing table action', function (): void {
     it('updates the email privacy_tier', function (): void {
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
             'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -177,7 +177,7 @@ describe('manageSharing table action', function (): void {
 
     it('creates EmailShare rows for each specified teammate', function (): void {
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
             'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -208,11 +208,11 @@ describe('manageSharing table action', function (): void {
     });
 
     it('creates EmailShare rows for multiple teammates selected in one tier row', function (): void {
-        $secondViewer = User::factory()->create(['current_team_id' => $this->team->id]);
-        $this->team->users()->attach($secondViewer, ['role' => 'editor']);
+        $secondViewer = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+        $this->workspace->users()->attach($secondViewer, ['role' => 'editor']);
 
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
             'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -249,7 +249,7 @@ describe('manageSharing table action', function (): void {
 
     it("clears the owner's previous shares when saved with an empty shares list", function (): void {
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
             'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -284,7 +284,7 @@ describe('manageSharing table action', function (): void {
         $this->actingAs($this->viewer);
 
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
             'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -303,14 +303,14 @@ describe('manageSharing table action', function (): void {
 describe('shareAllOnRecord header action', function (): void {
     it('updates privacy tier on all owner emails linked to the record', function (): void {
         $emailA = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
             'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
         ]);
 
         $emailB = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
             'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -335,7 +335,7 @@ describe('shareAllOnRecord header action', function (): void {
 
     it('creates EmailShare rows for each email on the record per specified teammate', function (): void {
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
             'privacy_tier' => EmailPrivacyTier::METADATA_ONLY,
@@ -379,7 +379,7 @@ describe('view table action', function (): void {
         $this->actingAs($this->viewer);
 
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
             'privacy_tier' => $tier,
@@ -405,7 +405,7 @@ describe('view table action', function (): void {
 describe('access request approve and deny from the reader overlay', function (): void {
     it('approves a pending request from the relation manager overlay', function (): void {
         $email = Email::factory()->private()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
             'subject' => 'Deal terms',
@@ -440,7 +440,7 @@ describe('access request approve and deny from the reader overlay', function ():
 
     it('denies a pending request from the relation manager overlay', function (): void {
         $email = Email::factory()->private()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
             'subject' => 'Deal terms',
@@ -477,7 +477,7 @@ describe('subject column privacy enforcement', function (): void {
         $this->actingAs($this->viewer);
 
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
             'subject' => 'Secret Subject',
@@ -495,7 +495,7 @@ describe('subject column privacy enforcement', function (): void {
 
     it('shows the real subject when the viewer can view the subject', function (): void {
         $email = Email::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->owner->id,
             'connected_account_id' => $this->account->getKey(),
             'subject' => 'Real Subject',
@@ -516,7 +516,7 @@ it('badges the emails tab with the visible count for the record', function (): v
     $this->person->forceFill(['email_count' => 99])->save();
 
     $visible = Email::factory()->count(2)->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
         'connected_account_id' => $this->account->getKey(),
     ]);
@@ -528,7 +528,7 @@ it('badges the emails tab with the visible count for the record', function (): v
 
 it('caps the emails tab badge at 99+', function (): void {
     $emails = Email::factory()->count(100)->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
         'connected_account_id' => $this->account->getKey(),
     ]);
@@ -542,7 +542,7 @@ it('omits the emails tab badge when the viewer cannot see the linked mail', func
     $this->person->forceFill(['email_count' => 2])->save();
 
     $private = Email::factory()->private()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->owner->id,
         'connected_account_id' => $this->account->getKey(),
     ]);

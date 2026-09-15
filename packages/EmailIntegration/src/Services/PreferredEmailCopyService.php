@@ -60,7 +60,7 @@ final readonly class PreferredEmailCopyService
         }
 
         return Email::query()
-            ->where('team_id', $email->team_id)
+            ->where('workspace_id', $email->workspace_id)
             ->where('user_id', $viewer->getKey())
             ->where('rfc_message_id', $email->rfc_message_id)
             ->exists();

@@ -32,15 +32,15 @@ mutates(MeetingsHomeWidget::class, ListMeetingsForDay::class, MeetingAttendeePre
 beforeEach(function (): void {
     $this->travelTo(Date::parse('2026-09-09 15:00:00'));
 
-    $this->user = User::factory()->withTeam()->create(['timezone' => 'UTC']);
+    $this->user = User::factory()->withWorkspace()->create(['timezone' => 'UTC']);
     $this->actingAs($this->user);
-    $this->team = $this->user->currentTeam;
+    $this->workspace = $this->user->currentWorkspace;
     Filament::setCurrentPanel(Filament::getPanel('app'));
-    Filament::setTenant($this->team);
+    Filament::setTenant($this->workspace);
 
     $this->account = ConnectedAccount::withoutEvents(
         fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $this->user->id,
             'sync_cursor' => 'done',
             'calendar_sync_cursor' => 'done',
@@ -118,7 +118,7 @@ it('shows mailbox sync progress during email-only history import', function (): 
 
 it('hides meetings while mailbox sync is in progress', function (): void {
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Board review',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
@@ -139,7 +139,7 @@ it('hides meetings while mailbox sync is in progress', function (): void {
 
 it('hides meetings while calendar sync is in progress', function (): void {
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Board review',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
@@ -159,7 +159,7 @@ it('hides meetings while calendar sync is in progress', function (): void {
 
 it('keeps meetings visible during background incremental sync', function (): void {
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Board review',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
@@ -231,7 +231,7 @@ it('returns to today from the overflow menu', function (): void {
 
 it('loads the day chosen in the calendar', function (): void {
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Board review',
         'starts_at' => Date::parse('2026-09-21 16:00:00'),
@@ -247,7 +247,7 @@ it('loads the day chosen in the calendar', function (): void {
 
 it('jumps to the next day that has a meeting', function (): void {
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Renewal call',
         'starts_at' => Date::parse('2026-09-12 16:00:00'),
@@ -264,7 +264,7 @@ it('jumps to the next day that has a meeting', function (): void {
 
 it('hides the jump button when no later meeting exists', function (): void {
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Past sync',
         'starts_at' => Date::parse('2026-09-01 16:00:00'),
@@ -293,7 +293,7 @@ it('shows the meetings panel on the dashboard above tasks', function (): void {
 
 it('shows a meeting that starts on the selected local day', function (): void {
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Call',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
@@ -310,7 +310,7 @@ it('shows a meeting that starts on the selected local day', function (): void {
 
 it('does not show a meeting that starts on another day', function (): void {
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Tomorrow standup',
         'starts_at' => Date::parse('2026-09-10 16:00:00'),
@@ -332,7 +332,7 @@ it('shows an all-day event on its calendar date for a viewer west of UTC', funct
     $this->user->forceFill(['timezone' => 'America/Los_Angeles'])->save();
 
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Company offsite',
         'starts_at' => Date::parse('2026-09-10 00:00:00', 'UTC'),
@@ -349,7 +349,7 @@ it('shows an all-day event on its calendar date for a viewer west of UTC', funct
 
 it('shows a multi-day all-day event on every day in its range', function (): void {
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Company offsite',
         'starts_at' => Date::parse('2026-09-10 00:00:00', 'UTC'),
@@ -373,7 +373,7 @@ it('does not mark todays all-day event as past for a viewer west of UTC', functi
     $this->user->forceFill(['timezone' => 'America/Los_Angeles'])->save();
 
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Company offsite',
         'starts_at' => Date::parse('2026-09-10 00:00:00', 'UTC'),
@@ -392,7 +392,7 @@ it('does not show an all-day event on the previous local day for a viewer west o
     $this->user->forceFill(['timezone' => 'America/Los_Angeles'])->save();
 
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Company offsite',
         'starts_at' => Date::parse('2026-09-10 00:00:00', 'UTC'),
@@ -409,7 +409,7 @@ it('jumps to the calendar date of a later all-day event for a viewer west of UTC
     $this->user->forceFill(['timezone' => 'America/Los_Angeles'])->save();
 
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Company offsite',
         'starts_at' => Date::parse('2026-09-10 00:00:00', 'UTC'),
@@ -429,7 +429,7 @@ it('lists a late-evening timed meeting on the local day for a viewer west of UTC
     $this->user->forceFill(['timezone' => 'America/Los_Angeles'])->save();
 
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'West coast standup',
         'starts_at' => Date::parse('2026-09-10 04:00:00', 'UTC'),
@@ -447,14 +447,14 @@ it('shows one copy when two calendars share an ical uid', function (): void {
     $teammate = User::factory()->create();
     $otherAccount = ConnectedAccount::withoutEvents(
         fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $teammate->id,
         ])
     );
     $starts = Date::parse('2026-09-09 16:00:00');
 
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $otherAccount->id,
         'title' => 'Shared weekly',
         'ical_uid' => 'weekly@example.test',
@@ -462,7 +462,7 @@ it('shows one copy when two calendars share an ical uid', function (): void {
         'ends_at' => Date::parse('2026-09-09 17:00:00'),
     ]);
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Shared weekly',
         'ical_uid' => 'weekly@example.test',
@@ -489,7 +489,7 @@ it('asks the user to sync a calendar when no mailbox is connected', function ():
             $component,
             TestAction::make('connectGmail'),
             'gmail',
-            $this->team,
+            $this->workspace,
         ));
 });
 
@@ -497,7 +497,7 @@ it('still asks to sync when the only mailbox is disconnected', function (): void
     $this->account->delete();
 
     ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->disconnected()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
     ]));
 
@@ -508,10 +508,10 @@ it('still asks to sync when the only mailbox is disconnected', function (): void
 
 it('does not treat a teammate mailbox as this user calendar', function (): void {
     $this->account->delete();
-    $teammate = User::factory()->create(['current_team_id' => $this->team->id]);
+    $teammate = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
     ConnectedAccount::withoutEvents(fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $teammate->id,
     ]));
 
@@ -527,7 +527,7 @@ it('drops the sync prompt once a mailbox is connected', function (): void {
 
 it('colours the row dot by the viewer RSVP without showing the label', function (string $status, string $expectedClass, string $unexpectedLabel): void {
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Call',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
@@ -547,7 +547,7 @@ it('colours the row dot by the viewer RSVP without showing the label', function 
 
 it('does not list attendees on the home meeting row', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Staff call',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
@@ -568,13 +568,13 @@ it('does not list attendees on the home meeting row', function (): void {
 
 it('names a linked contact in the home meeting slideover', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Call',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
         'ends_at' => Date::parse('2026-09-09 17:00:00'),
     ]);
-    $person = People::factory()->for($this->team)->create(['name' => 'Maya Chen']);
+    $person = People::factory()->for($this->workspace)->create(['name' => 'Maya Chen']);
 
     MeetingAttendee::factory()->create([
         'meeting_id' => $meeting->id,
@@ -596,14 +596,14 @@ it('names a linked contact in the home meeting slideover', function (): void {
 
 it('names a slideover guest from mailbox history without a person record', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Call',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
         'ends_at' => Date::parse('2026-09-09 17:00:00'),
     ]);
     $mail = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
     ]);
@@ -632,14 +632,14 @@ it('names a slideover guest from mailbox history without a person record', funct
 
 it('names a slideover guest from the viewer own private email', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Call',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
         'ends_at' => Date::parse('2026-09-09 17:00:00'),
     ]);
     $mail = Email::factory()->private()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
         'connected_account_id' => $this->account->id,
     ]);
@@ -665,22 +665,22 @@ it('names a slideover guest from the viewer own private email', function (): voi
 });
 
 it('does not name a slideover guest from a teammate private email', function (): void {
-    $teammate = User::factory()->create(['current_team_id' => $this->team->id]);
+    $teammate = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
     $teammateAccount = ConnectedAccount::withoutEvents(
         fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $teammate->id,
         ])
     );
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Call',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
         'ends_at' => Date::parse('2026-09-09 17:00:00'),
     ]);
     $mail = Email::factory()->private()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $teammate->id,
         'connected_account_id' => $teammateAccount->id,
     ]);
@@ -706,22 +706,22 @@ it('does not name a slideover guest from a teammate private email', function ():
 });
 
 it('does not name a slideover guest from a mailbox-blocked email', function (): void {
-    $teammate = User::factory()->create(['current_team_id' => $this->team->id]);
+    $teammate = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
     $teammateAccount = ConnectedAccount::withoutEvents(
         fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $teammate->id,
         ])
     );
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Call',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
         'ends_at' => Date::parse('2026-09-09 17:00:00'),
     ]);
     $mail = Email::factory()->full()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $teammate->id,
         'connected_account_id' => $teammateAccount->id,
         'is_internal' => false,
@@ -733,7 +733,7 @@ it('does not name a slideover guest from a mailbox-blocked email', function (): 
     ]);
     EmailBlocklist::factory()->email('spam@badactor.test')->create([
         'user_id' => $teammate->id,
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $teammateAccount->id,
     ]);
 
@@ -753,22 +753,22 @@ it('does not name a slideover guest from a mailbox-blocked email', function (): 
 });
 
 it('names a slideover guest from a teammate workspace-visible email', function (): void {
-    $teammate = User::factory()->create(['current_team_id' => $this->team->id]);
+    $teammate = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
     $teammateAccount = ConnectedAccount::withoutEvents(
         fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $teammate->id,
         ])
     );
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Call',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
         'ends_at' => Date::parse('2026-09-09 17:00:00'),
     ]);
     $mail = Email::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'user_id' => $teammate->id,
         'connected_account_id' => $teammateAccount->id,
         'is_internal' => false,
@@ -805,7 +805,7 @@ it('does not name a slideover guest from the workspace user for a different conn
     ])->save();
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Call',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
@@ -830,7 +830,7 @@ it('does not name a slideover guest from the workspace user for a different conn
 
 it('shows a person icon in the slideover when the attendee has no name', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Call',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
@@ -855,7 +855,7 @@ it('shows a person icon in the slideover when the attendee has no name', functio
 
 it('collapses duplicate guest emails in the home meeting slideover', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Call',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
@@ -885,7 +885,7 @@ it('marks an in-progress meeting as happening now', function (): void {
     $this->travelTo(Date::parse('2026-09-09 16:30:00'));
 
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Call',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
@@ -899,7 +899,7 @@ it('marks an in-progress meeting as happening now', function (): void {
 
 it('strikes through the title when a meeting is in the past', function (): void {
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Morning sync',
         'starts_at' => Date::parse('2026-09-09 10:00:00'),
@@ -908,7 +908,7 @@ it('strikes through the title when a meeting is in the past', function (): void 
     ]);
 
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Afternoon review',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
@@ -928,7 +928,7 @@ it('strikes through the title when a meeting is in the past', function (): void 
 
 it('applies a hover background to meeting list rows', function (): void {
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Call',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
@@ -946,7 +946,7 @@ it('applies a hover background to meeting list rows', function (): void {
 it('renders load more outside the meeting list card', function (): void {
     foreach (range(1, 5) as $index) {
         Meeting::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'connected_account_id' => $this->account->id,
             'title' => "Meeting {$index}",
             'starts_at' => Date::parse('2026-09-09 10:00:00')->addHours($index),
@@ -964,7 +964,7 @@ it('renders load more outside the meeting list card', function (): void {
 
 it('strikes through the modal title when a meeting is in the past', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Morning sync',
         'starts_at' => Date::parse('2026-09-09 10:00:00'),
@@ -984,7 +984,7 @@ it('strikes through the modal title when a meeting is in the past', function ():
 
 it('does not mark a later meeting as happening now', function (): void {
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Call',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
@@ -999,7 +999,7 @@ it('does not mark a later meeting as happening now', function (): void {
 
 it('opens the meeting modal from the row', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Call',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
@@ -1015,7 +1015,7 @@ it('opens the meeting modal from the row', function (): void {
 
 it('opens the meeting modal when the row is clicked', function (): void {
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Call',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
@@ -1041,7 +1041,7 @@ it('opens the meeting modal when the row is clicked', function (): void {
 it('shows four meetings and load more when the day has more', function (): void {
     foreach (range(1, 5) as $index) {
         Meeting::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'connected_account_id' => $this->account->id,
             'title' => "Meeting {$index}",
             'starts_at' => Date::parse('2026-09-09 10:00:00')->addHours($index),
@@ -1062,7 +1062,7 @@ it('shows four meetings and load more when the day has more', function (): void 
 it('does not show load more when the day has four meetings', function (): void {
     foreach (range(1, 4) as $index) {
         Meeting::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'connected_account_id' => $this->account->id,
             'title' => "Meeting {$index}",
             'starts_at' => Date::parse('2026-09-09 10:00:00')->addHours($index),
@@ -1078,7 +1078,7 @@ it('does not show load more when the day has four meetings', function (): void {
 it('resets the visible list when the selected day changes', function (): void {
     foreach (range(1, 5) as $index) {
         Meeting::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'connected_account_id' => $this->account->id,
             'title' => "Meeting {$index}",
             'starts_at' => Date::parse('2026-09-09 10:00:00')->addHours($index),
@@ -1087,7 +1087,7 @@ it('resets the visible list when the selected day changes', function (): void {
     }
 
     Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $this->account->id,
         'title' => 'Tomorrow only',
         'starts_at' => Date::parse('2026-09-10 16:00:00'),
@@ -1107,17 +1107,17 @@ it('resets the visible list when the selected day changes', function (): void {
 });
 
 it('does not list a teammate meeting on home when the viewer is not invited', function (): void {
-    $teammate = User::factory()->create(['current_team_id' => $this->team->id]);
+    $teammate = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
 
     $teammateAccount = ConnectedAccount::withoutEvents(
         fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $teammate->id,
         ])
     );
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $teammateAccount->id,
         'title' => 'Meeting with client',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),
@@ -1148,19 +1148,19 @@ it('names a self attendee from the meeting mailbox when viewing a teammate copy'
         'name' => 'Bob Owner',
         'email' => 'bob@example.com',
     ]);
-    $bob->teams()->attach($this->team, ['role' => 'admin']);
-    $bob->forceFill(['current_team_id' => $this->team->id])->save();
+    $bob->workspaces()->attach($this->workspace, ['role' => 'admin']);
+    $bob->forceFill(['current_workspace_id' => $this->workspace->id])->save();
 
     $bobAccount = ConnectedAccount::withoutEvents(
         fn (): ConnectedAccount => ConnectedAccount::factory()->create([
-            'team_id' => $this->team->id,
+            'workspace_id' => $this->workspace->id,
             'user_id' => $bob->id,
             'email_address' => 'bob@example.com',
         ])
     );
 
     $meeting = Meeting::factory()->create([
-        'team_id' => $this->team->id,
+        'workspace_id' => $this->workspace->id,
         'connected_account_id' => $bobAccount->id,
         'title' => 'Shared standup',
         'starts_at' => Date::parse('2026-09-09 16:00:00'),

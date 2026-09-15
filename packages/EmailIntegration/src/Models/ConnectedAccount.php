@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Relaticle\EmailIntegration\Models;
 
-use App\Models\Concerns\HasTeam;
-use App\Models\Team;
+use App\Models\Concerns\HasWorkspace;
 use App\Models\User;
+use App\Models\Workspace;
 use Carbon\CarbonInterface;
 use Database\Factories\ConnectedAccountFactory;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -25,7 +25,7 @@ use Relaticle\EmailIntegration\Services\MailboxSyncTracker;
 
 /**
  * @property string $id
- * @property string $team_id
+ * @property string $workspace_id
  * @property string $user_id
  * @property EmailProvider $provider
  * @property string $provider_account_id
@@ -58,7 +58,7 @@ final class ConnectedAccount extends Model
     /**
      * @use HasFactory<ConnectedAccountFactory>
      */
-    use HasFactory, HasTeam, HasUlids, SoftDeletes;
+    use HasFactory, HasUlids, HasWorkspace, SoftDeletes;
 
     protected static function newFactory(): ConnectedAccountFactory
     {
@@ -66,7 +66,7 @@ final class ConnectedAccount extends Model
     }
 
     protected $fillable = [
-        'team_id',
+        'workspace_id',
         'user_id',
         'provider',
         'provider_account_id',
@@ -105,11 +105,11 @@ final class ConnectedAccount extends Model
      * @return Builder<ConnectedAccount>
      */
     #[Scope]
-    protected function ownedBy(Builder $query, User $user, Team $team): Builder
+    protected function ownedBy(Builder $query, User $user, Workspace $team): Builder
     {
         return $query
             ->where('user_id', $user->getKey())
-            ->where('team_id', $team->getKey());
+            ->where('workspace_id', $team->getKey());
     }
 
     /**
@@ -215,9 +215,9 @@ final class ConnectedAccount extends Model
      * Whether the user has added a mailbox in this team. Sync-error and
      * reauth-required accounts count. Disconnected accounts do not.
      */
-    public static function hasConnectedFor(User $user, ?Team $team): bool
+    public static function hasConnectedFor(User $user, ?Workspace $team): bool
     {
-        if (! $team instanceof Team) {
+        if (! $team instanceof Workspace) {
             return false;
         }
 
@@ -227,9 +227,9 @@ final class ConnectedAccount extends Model
     /**
      * Whether the user has at least one account that is safe to sync or send through.
      */
-    public static function hasActiveFor(User $user, ?Team $team): bool
+    public static function hasActiveFor(User $user, ?Workspace $team): bool
     {
-        if (! $team instanceof Team) {
+        if (! $team instanceof Workspace) {
             return false;
         }
 
@@ -240,9 +240,9 @@ final class ConnectedAccount extends Model
      * Whether the user has at least one active mailbox that can send from Relaticle.
      * Accounts connected before send was tracked are treated as sendable.
      */
-    public static function hasSendableFor(User $user, ?Team $team): bool
+    public static function hasSendableFor(User $user, ?Workspace $team): bool
     {
-        if (! $team instanceof Team) {
+        if (! $team instanceof Workspace) {
             return false;
         }
 
